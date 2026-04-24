@@ -1,0 +1,19 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 2 — Network Telemetry Anomaly Detection
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Python bytecode — found at repo root and inside src/, tests/, dashboard/
+__pycache__/
+*.pyc
+
+# Local virtual environment (the env/ folder contains site-packages)
+env/
+
+# Pytest cache
+.pytest_cache/
+
+# Editor / IDE settings
+.vscode/
+
+# Claude Code local settings (contains .claude/settings.local.json)
+.claude/
