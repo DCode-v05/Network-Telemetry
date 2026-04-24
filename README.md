@@ -227,5 +227,4 @@ Contributions are welcome! To contribute:
 
 ## Contact
 - **GitHub:** [DCode-v05](https://github.com/DCode-v05)
-- **Repository:** [Network-Telementry](https://github.com/DCode-v05/Network-Telementry.git)
 - **Email:** denistanb05@gmail.com
