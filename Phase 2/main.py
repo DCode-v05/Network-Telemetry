@@ -58,7 +58,7 @@ def main():
         logger.error(
             f"\nData directory not found: {cfg.DATA_DIR}\n"
             "Make sure DATA_DIR in config.py points to agg_10_minutes/\n"
-            "inside ip_addresses_sample. See README.md."
+            "inside ip_addresses_sample. See the root README.md."
         )
         sys.exit(1)
 

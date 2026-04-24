@@ -136,8 +136,7 @@ Source: [requirements.txt](../requirements.txt).
 
 ```
 network_telemetry_phase2/
-├── data/                        # CESNET CSVs (placed by user)
-│   └── README_data.md           # Data placement instructions
+├── data/                        # CESNET CSVs (placed by user — see root README)
 ├── src/
 │   ├── pipeline/                # Person 1 – Arthi
 │   │   ├── loader.py
@@ -171,8 +170,7 @@ network_telemetry_phase2/
 │   └── PHASE_2_DOCUMENTATION.md # ← this file
 ├── main.py                      # Single CLI entry point
 ├── config.py                    # All tunable parameters
-├── requirements.txt
-└── README.md
+└── requirements.txt
 ```
 
 ---
@@ -239,7 +237,7 @@ pip install -r requirements.txt
 
 ### Place data
 
-Download `ip_addresses_sample.tar.gz` from <https://zenodo.org/records/13382427>, extract, and put the per-IP CSVs in `data/ip_addresses_sample/agg_10_minutes/`. See [data/README_data.md](../data/README_data.md).
+Download `ip_addresses_sample.tar.gz` from <https://zenodo.org/records/13382427>, extract, and put the per-IP CSVs in `data/ip_addresses_sample/agg_10_minutes/`. See the root [README.md](../../README.md) for schema details and dataset notes.
 
 ### Run full evaluation
 
