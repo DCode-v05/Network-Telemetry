@@ -1,7 +1,7 @@
 # Network Telemetry Anomaly Detection
 
 ## Project Description
-This project investigates lightweight, on-device anomaly detection algorithms for real-time network telemetry on HPE Aruba switches. By streaming network metrics through a fixed-size sliding window and evaluating six statistical detectors against four classes of injected anomalies, the system identifies which algorithms deliver the best accuracy, latency, and memory profile within the strict resource budget of an ARM-class control plane processor. Phase 1 delivered a theoretical study of fifteen candidate algorithms; Phase 2 empirically benchmarks the six finalists on real CESNET ISP traffic and produces an interactive HTML dashboard summarising the results.
+This project investigates lightweight, on-device anomaly detection algorithms for real-time network telemetry on HPE Aruba switches. By streaming network metrics through a fixed-size sliding window and evaluating six statistical detectors — and now a two-layer ensemble of those detectors — against four classes of injected anomalies, the system identifies which algorithms deliver the best accuracy, latency, and memory profile within the strict resource budget of an ARM-class control plane processor. Phase 1 delivered a theoretical study of fifteen candidate algorithms; Phase 2 empirically benchmarked the six finalists on real CESNET ISP traffic and produced an interactive HTML dashboard summarising the results; Phase 3 builds a confirmation-gated two-layer ensemble on top of those finalists and re-benchmarks against Phase 2 row-for-row.
 
 ---
 
@@ -61,6 +61,40 @@ The Plotly HTML report provides:
 
 ---
 
+## Phase 3 — Two-Layer Ensemble + Confirmation Gate
+
+Phase 3 is the architectural answer to Phase 2's headline finding (no single detector wins on every anomaly class) and its precision problem (5–20 anomalous samples in a ~280-sample series collapse precision under any non-trivial FPR). It is **100% additive** over Phase 2 — every Phase 2 detector, hyperparameter, dataset, RNG seed, and harness contract is reused unchanged. Phase 3 adds three new classes (each subclassing `DetectorBase`) and a small evaluation/visualisation layer.
+
+### Architecture
+```
+   Layer 1 — Spike pipeline        :  GatedMAD ∧ GatedZScore        (high precision)
+   Layer 2 — Sustained pipeline    :  GatedEWMA ∨ GatedCUSUM        (high recall)
+   Top-level fusion                :  Layer 1 OR Layer 2            (union of coverage)
+   Confirmation gate (per child)   :  n = 2 consecutive child alarms before alarm
+```
+
+Each base detector is wrapped in a `ConfirmationGate(n=2)` to suppress singleton false alarms typical of MAD/Z-Score on tail noise. Layer 1 votes AND (corroboration); Layer 2 votes OR (EWMA and CUSUM lock onto the same shift via different mechanisms and trip at different samples).
+
+### New components
+- `ConfirmationGate(child, n)` — forwards every sample, requires `n` consecutive child alarms before declaring anomaly. Resets propagate to the child.
+- `VotingLayer(children, mode="AND"|"OR")` — combines ≥ 2 gated children. `score = max(child.score)` (ROC-compatible); `alarm_value` reports the vote count.
+- `TwoLayerEnsemble(spike_layer, sustained_layer)` — top-level OR fusion with per-layer attribution so the dashboard can colour-code which layer caught each anomaly.
+
+### Sweep grid
+14 detectors (6 individuals + 4 gated baselines + 3 voting layers + 1 ensemble) × 4 windows × 4 anomaly types × 30 trials = **6,720 trials** per full run.
+
+### Phase 3 acceptance criteria
+| Criterion | Threshold |
+|-----------|-----------|
+| `gate_fp_reduction` positive for ≥ 3 of 4 base detectors | central claim |
+| Ensemble FPR ≤ best-single FPR for ≥ 3 of 4 anomaly types | central claim |
+| Ensemble TPR within 5 pp of best-single TPR per anomaly | acceptable cost |
+| All unit tests pass (`pytest tests/`) | wiring |
+
+Full Phase 3 reference: [`Phase 3/docs/PHASE_3_DOCUMENTATION.md`](Phase%203/docs/PHASE_3_DOCUMENTATION.md). Standalone Phase 2 outcomes summary: [`Phase 2/docs/PHASE_2_FINDINGS.md`](Phase%202/docs/PHASE_2_FINDINGS.md).
+
+---
+
 ## Tech Stack
 - Python 3.10+
 - numpy, pandas, scipy
@@ -116,40 +150,57 @@ dir_ratio_bytes, avg_duration, avg_ttl
 
 The loader uses the 10-minute aggregation by default. If the extracted files are nested under `agg_10_minutes/`, update `DATA_DIR` in `Phase 2/config.py` to point there.
 
-### 4. Run the full evaluation
+### 4. Run the full Phase 2 evaluation
 ```
 python main.py
 ```
 Raw trial CSVs are written to `results/csv/`, plots to `results/plots/`, and the interactive report to `results/dashboard/`.
 
-### 5. Run the test suite
+### 5. Run the Phase 2 test suite
 ```
 pytest tests/ -v
 ```
 
+### 6. Run Phase 3 (ensemble benchmark)
+Phase 3 reuses Phase 2's virtualenv and CESNET data — no extra setup. From the repository root:
+```
+cd "../Phase 3"
+python main.py --quick --no_plot --no_dashboard                                # ~30s smoke run
+python main.py --compare_phase2_csv "../Phase 2/results/csv/aggregated_results.csv"   # full ~70 min run
+pytest tests/ -v                                                               # 48 tests
+```
+Outputs: `Phase 3/results/csv/aggregated_results.csv` (224 rows), `Phase 3/results/csv/raw_trial_results.csv` (6,720 rows), `Phase 3/results/dashboard.html`.
+
 ---
 
 ## Usage
-- Use `main.py` to run the full 2,880-trial benchmark end-to-end.
-- Tune algorithm or sweep parameters exclusively in `Phase 2/config.py`.
-- Inspect per-trial CSV outputs in `results/csv/` and static plots in `results/plots/`.
-- Open the generated interactive HTML dashboard in any browser to explore detector behaviour under every condition.
-- Refer to `Phase 1/Algorithm_Study_Document .md` for the theoretical rationale behind the six finalist detectors and `Phase 2/docs/PHASE_2_DOCUMENTATION.md` for the full technical reference.
+- Use `Phase 2/main.py` to run the full 2,880-trial single-detector benchmark end-to-end.
+- Use `Phase 3/main.py` to run the full 6,720-trial ensemble benchmark, optionally comparing row-for-row against Phase 2 with `--compare_phase2_csv`.
+- Tune Phase 2 detector / sweep parameters in `Phase 2/config.py`. Tune the Phase 3 ensemble (`confirmation_n`, layer membership, voting mode) in `Phase 3/config.py`. Phase 3 inherits everything else from Phase 2 verbatim via `_phase2_bridge.py` so results are byte-comparable.
+- Inspect per-trial CSV outputs in `Phase 2/results/csv/` and `Phase 3/results/csv/`, static plots in `Phase 2/results/plots/`.
+- Open the generated interactive HTML dashboards (one per phase) in any browser to explore detector behaviour under every condition.
+- Refer to [`Phase 1/Algorithm_Study_Document .md`](Phase%201/Algorithm_Study_Document%20.md) for the theoretical rationale behind the six finalist detectors, [`Phase 2/docs/PHASE_2_DOCUMENTATION.md`](Phase%202/docs/PHASE_2_DOCUMENTATION.md) for the full Phase 2 technical reference, [`Phase 2/docs/PHASE_2_FINDINGS.md`](Phase%202/docs/PHASE_2_FINDINGS.md) for the structured outcomes summary, and [`Phase 3/docs/PHASE_3_DOCUMENTATION.md`](Phase%203/docs/PHASE_3_DOCUMENTATION.md) for the ensemble design and re-benchmark protocol.
 
 ---
 
 ## Modules
 
-| Module             | Responsibility                                                   | Files                                                              |
-|--------------------|------------------------------------------------------------------|--------------------------------------------------------------------|
-| Data Pipeline      | CESNET CSV loading, normalisation, O(1) sliding-window buffer    | `src/pipeline/loader.py`, `src/pipeline/window_buffer.py`          |
-| Anomaly Injector   | Inject burst / rate shift / gradual drift / transient with labels| `src/injector/anomaly_injector.py`                                 |
-| Detectors A        | Statistical deviation detectors                                  | `src/detectors/zscore.py`, `src/detectors/mad.py`                  |
-| Detectors B        | Exponential smoothing detectors                                  | `src/detectors/ewma.py`, `src/detectors/sliding_window_stats.py`   |
-| Detectors C        | Change-point / accumulation detectors                            | `src/detectors/cusum.py`, `src/detectors/page_hinkley.py`          |
-| Evaluation Harness | Sweep runner, metrics, plots, dashboard                          | `src/evaluation/harness.py`, `src/evaluation/metrics.py`, `main.py`|
+| Module                        | Responsibility                                                       | Files                                                                                  | Phase |
+|-------------------------------|----------------------------------------------------------------------|----------------------------------------------------------------------------------------|-------|
+| Data Pipeline                 | CESNET CSV loading, normalisation, O(1) sliding-window buffer        | `Phase 2/src/pipeline/loader.py`, `Phase 2/src/pipeline/window_buffer.py`              | 2     |
+| Anomaly Injector              | Inject burst / rate shift / gradual drift / transient with labels    | `Phase 2/src/injector/anomaly_injector.py`                                             | 2     |
+| Detectors A (spike)           | Statistical deviation detectors                                      | `Phase 2/src/detectors/zscore.py`, `Phase 2/src/detectors/mad.py`                      | 2     |
+| Detectors B (baseline track)  | Exponential smoothing detectors                                      | `Phase 2/src/detectors/ewma.py`, `Phase 2/src/detectors/sliding_window_stats.py`       | 2     |
+| Detectors C (change point)    | Change-point / accumulation detectors                                | `Phase 2/src/detectors/cusum.py`, `Phase 2/src/detectors/page_hinkley.py`              | 2     |
+| Phase 2 Evaluation Harness    | Single-detector sweep, metrics, plots, dashboard                     | `Phase 2/src/evaluation/harness.py`, `Phase 2/src/evaluation/metrics.py`, `Phase 2/main.py` | 2     |
+| Confirmation Gate             | Wraps any detector; requires N consecutive child alarms              | `Phase 3/ensemble/confirmation_gate.py`                                                | 3     |
+| Voting Layer                  | Combines ≥ 2 gated detectors via AND or OR                           | `Phase 3/ensemble/voting_layer.py`                                                     | 3     |
+| Two-Layer Ensemble            | Top-level OR fusion of spike + sustained layers with attribution     | `Phase 3/ensemble/two_layer_ensemble.py`                                               | 3     |
+| Phase 2 → Phase 3 Bridge      | sys.path shim + Phase 2 re-exports (config, detectors, harness)      | `Phase 3/_phase2_bridge.py`                                                            | 3     |
+| Phase 3 Evaluation Harness    | Ensemble sweep, gate-FP-reduction & ensemble-vs-best metrics         | `Phase 3/evaluation/harness.py`, `Phase 3/evaluation/phase3_metrics.py`, `Phase 3/main.py` | 3     |
+| Phase 3 Dashboard             | Plotly HTML report incl. Phase 2 ↔ Phase 3 comparison figure         | `Phase 3/dashboard/generate_report.py`                                                 | 3     |
 
-**Integration contract:** every detector implements `src/detectors/base.py` and every consumer uses `src/pipeline/window_buffer.py`. These interfaces are the stable seam between modules, and all 89+ tests enforce the contract.
+**Integration contract:** every detector — Phase 2 individuals and Phase 3 ensemble classes alike — implements `Phase 2/src/detectors/base.py::DetectorBase`, and every consumer uses `Phase 2/src/pipeline/window_buffer.py`. These interfaces are the stable seam between modules. Phase 2's 89+ tests and Phase 3's 48 tests (incl. parametrised base-contract checks across all four ensemble classes) enforce the contract end-to-end.
 
 ---
 
@@ -162,7 +213,7 @@ Network-Telementry/
 │   ├── HPE_Evaluation_Criteria_Specification.md
 │   └── PDFs/                                 # Reference papers
 │
-├── Phase 2/                                  # Implementation and benchmarking
+├── Phase 2/                                  # Single-detector implementation & benchmarking
 │   ├── data/                                 # CESNET CSVs go here
 │   ├── src/
 │   │   ├── pipeline/
@@ -171,7 +222,7 @@ Network-Telementry/
 │   │   ├── injector/
 │   │   │   └── anomaly_injector.py           # Burst / rate shift / drift / transient
 │   │   ├── detectors/
-│   │   │   ├── base.py                       # DetectorBase contract
+│   │   │   ├── base.py                       # DetectorBase contract (shared with Phase 3)
 │   │   │   ├── zscore.py
 │   │   │   ├── mad.py
 │   │   │   ├── ewma.py
@@ -193,12 +244,39 @@ Network-Telementry/
 │   │   ├── plots/                            # Static PNGs
 │   │   └── dashboard/                        # Interactive HTML
 │   ├── docs/
-│   │   └── PHASE_2_DOCUMENTATION.md          # Full technical reference
+│   │   ├── PHASE_2_DOCUMENTATION.md          # Full technical reference
+│   │   └── PHASE_2_FINDINGS.md               # Structured outcomes / key findings
 │   ├── notebooks/
 │   │   └── exploration.ipynb                 # EDA on CESNET sample
-│   ├── main.py                               # Single entry point
+│   ├── main.py                               # Single-detector benchmark entry point
 │   ├── config.py                             # All tunable parameters
 │   └── requirements.txt
+│
+├── Phase 3/                                  # Two-layer ensemble + confirmation gate
+│   ├── _phase2_bridge.py                     # sys.path shim + Phase 2 re-exports
+│   ├── config.py                             # Extends Phase 2 with ENSEMBLE block
+│   ├── main.py                               # CLI entry (--quick, --compare_phase2_csv, …)
+│   ├── ensemble/
+│   │   ├── confirmation_gate.py              # ConfirmationGate(child, n=2)
+│   │   ├── voting_layer.py                   # VotingLayer(children, mode)
+│   │   └── two_layer_ensemble.py             # TwoLayerEnsemble(spike, sustained)
+│   ├── evaluation/
+│   │   ├── harness.py                        # 6,720-trial sweep, build_detectors(w)
+│   │   └── phase3_metrics.py                 # gate_fp_reduction, ensemble_vs_best deltas
+│   ├── dashboard/
+│   │   └── generate_report.py                # Plotly HTML, 8 base + 2 ensemble figures
+│   ├── tests/
+│   │   ├── conftest.py                       # pytest bootstrap (path setup)
+│   │   ├── _helpers.py                       # MockDetector test double
+│   │   ├── test_confirmation_gate.py
+│   │   ├── test_voting_layer.py
+│   │   ├── test_two_layer_ensemble.py
+│   │   └── test_ensemble_base_contract.py    # parametrised across all 4 ensembles
+│   ├── docs/
+│   │   └── PHASE_3_DOCUMENTATION.md          # Full ensemble design & re-benchmark protocol
+│   └── results/
+│       ├── csv/                              # 14 detectors × 4 anomalies × 4 windows = 224 rows
+│       └── dashboard.html                    # Plotly report with phase 2↔3 comparison
 │
 └── README.md                                 # This file
 ```
