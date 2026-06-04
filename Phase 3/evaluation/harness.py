@@ -302,3 +302,4 @@ def _save_aggregated_results(aggregated: List[Dict[str, Any]]) -> None:
         writer.writeheader()
         writer.writerows(clean)
     logger.info(f"Aggregated results -> {path}")
+
