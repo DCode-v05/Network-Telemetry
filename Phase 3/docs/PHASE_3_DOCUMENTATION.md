@@ -21,12 +21,13 @@
 9. [Harness Changes vs Phase 2](#9-harness-changes-vs-phase-2)
 10. [Detector Roster](#10-detector-roster)
 11. [Re-Benchmark Protocol](#11-re-benchmark-protocol)
-12. [Expected Result Patterns](#12-expected-result-patterns)
-13. [Reading the Dashboard](#13-reading-the-dashboard)
-14. [Limitations & Risks](#14-limitations--risks)
-15. [Phase 4 Recommendations (C++ Port Path)](#15-phase-4-recommendations-c-port-path)
-16. [Repository Layout](#16-repository-layout)
-17. [How to Run](#17-how-to-run)
+12. [Metrics Reference](#12-metrics-reference)
+13. [Expected Result Patterns](#13-expected-result-patterns)
+14. [Reading the Dashboard](#14-reading-the-dashboard)
+15. [Limitations & Risks](#15-limitations--risks)
+16. [Phase 4 Recommendations (C++ Port Path)](#16-phase-4-recommendations-c-port-path)
+17. [Repository Layout](#17-repository-layout)
+18. [How to Run](#18-how-to-run)
 
 ---
 
@@ -250,7 +251,132 @@ Acceptance criteria (verified post-run):
 | Ensemble TPR within 5 pp of best-single TPR per anomaly | acceptable cost |
 | All unit tests pass (`pytest tests/`)                   | wiring |
 
-## 12. Expected Result Patterns
+## 12. Metrics Reference
+
+Plain-language reference for the metrics in the Phase 3 evaluation
+(`evaluation/metrics_report.py`) and the columns in every results table.
+Example numbers come from the w=20, 30-trial run (1,680 trials).
+
+### 12.1 The foundation — 4 counts per trial
+
+Every metric is built by comparing, for each sample, the detector's alarm
+against the ground-truth label (anomaly or normal):
+
+| Count | Name           | Plain meaning                                      |
+| :---: | -------------- | -------------------------------------------------- |
+| **TP** | True Positive  | Anomaly happened **and** the detector fired. ✅ hit |
+| **FP** | False Positive | Normal sample **but** the detector fired. ❌ false alarm |
+| **TN** | True Negative  | Normal sample **and** the detector stayed quiet. ✅ |
+| **FN** | False Negative | Anomaly happened **but** the detector missed it. ❌ miss |
+
+These are the `tp, fp, tn, fn` columns in `raw_trial_results.csv`. Everything
+below is just a ratio of these four numbers.
+
+### 12.2 The metrics
+
+#### Accuracy
+- **Plain:** Of *all* samples, what fraction did the detector label correctly?
+- **Formula:** `(TP + TN) / (TP + FP + TN + FN)`
+- **Range:** 0–1 · **higher is better**
+- **⚠️ Misleading on this task:** ~99% of samples are normal, so a detector that
+  *never fires* still scores ~0.99. Do **not** rank detectors by accuracy alone.
+- **Example:** `Spike_AND` = **0.992** looks excellent — but it catches only ~6%
+  of real anomalies (see its TPR). High accuracy here mostly means "stayed quiet."
+
+#### Precision
+- **Plain:** When the detector fires, how often is it actually right?
+- **Formula:** `TP / (TP + FP)`
+- **Range:** 0–1 · **higher is better**
+- **⚠️** Very low here because the few real anomalies (5–20 samples) are swamped
+  by false alarms across a ~40,000-sample series.
+
+#### TPR — True Positive Rate (a.k.a. Recall / Detection Rate)
+- **Plain:** Of *all the real anomalies*, what fraction did the detector catch?
+- **Formula:** `TP / (TP + FN)`
+- **Range:** 0–1 · **higher is better**
+- **Example:** `TwoLayerEnsemble` TPR = **0.47** → catches ~47% of anomalies;
+  `Spike_AND` TPR = **0.06** → catches ~6%.
+
+#### FPR — False Positive Rate
+- **Plain:** Of *all the normal samples*, what fraction did the detector wrongly flag?
+- **Formula:** `FP / (FP + TN)`
+- **Range:** 0–1 · **lower is better**
+- **Example:** The confirmation gate's whole job: `MAD` FPR **0.146 → GatedMAD 0.056**;
+  `ZScore` FPR **0.051 → GatedZScore 0.007**. Fewer false alarms.
+
+#### F1 Score
+- **Plain:** One number that balances Precision and Recall (their harmonic mean).
+  Rewards catching anomalies **without** spamming false alarms.
+- **Formula:** `2 · (Precision · Recall) / (Precision + Recall)`
+- **Range:** 0–1 · **higher is better**
+- **This is the honest headline metric** for imbalanced anomaly detection.
+- **⚠️** Absolute values look tiny here (~0.005) because precision is tiny on long
+  series — compare detectors **relative to each other**, not against 1.0.
+
+### 12.3 "TPR vs FPR" — why they are shown as a pair
+
+TPR and FPR are the two halves of one trade-off:
+
+- **TPR ↑** = catch more real anomalies (good)
+- **FPR ↓** = raise fewer false alarms (good)
+
+You want **high TPR _and_ low FPR**. Each detector is one point on this trade-off:
+
+| Detector            | TPR (catch) | FPR (false alarms) | Reading                          |
+| ------------------- | :---------: | :----------------: | -------------------------------- |
+| `Spike_AND`         |    0.06     |       0.007        | Barely fires — ultra-safe, misses most |
+| `GatedMAD`          |    0.35     |       0.056        | Balanced precision side          |
+| `TwoLayerEnsemble`  |    0.47     |       0.196        | Catches the most, at more false alarms |
+
+This is the ROC-style view. **F1 collapses this pair into a single score.**
+
+### 12.4 Table columns
+
+**`metrics_report.py` console tables** (per detector, averaged over all trials):
+
+| Table                      | Columns              | What each column is                          |
+| -------------------------- | -------------------- | -------------------------------------------- |
+| **ACCURACY PER DETECTOR**  | `detector`, `accuracy` | Name; mean accuracy (sorted best-first)    |
+| **F1 SCORE PER DETECTOR**  | `detector`, `f1`     | Name; mean F1 (sorted best-first)            |
+| **TPR vs FPR PER DETECTOR**| `detector`, `tpr`, `fpr` | Name; mean recall and mean false-alarm rate |
+
+**`results/csv/metrics_report.csv`** (saved summary, one row per detector):
+
+| Column      | Meaning                                                                |
+| ----------- | ---------------------------------------------------------------------- |
+| `detector`  | Detector name + its parameters, e.g. `MAD(w=20, thr=3.5)`              |
+| `n_trials`  | How many trial rows were averaged (30 trials × 4 anomaly types = 120)  |
+| `accuracy`  | Mean accuracy across those trials                                      |
+| `f1`        | Mean F1 score                                                          |
+| `tpr`       | Mean True Positive Rate (recall)                                       |
+| `fpr`       | Mean False Positive Rate                                               |
+| `precision` | Mean precision                                                         |
+
+**`results/csv/raw_trial_results.csv`** (one row per single trial — the source data):
+
+| Column              | Meaning                                                        |
+| ------------------- | ------------------------------------------------------------- |
+| `detector`          | Detector name + parameters                                    |
+| `anomaly_type`      | `burst` / `rate_shift` / `gradual_drift` / `transient`        |
+| `window_size`       | Sliding-window length used (20 here)                          |
+| `trial`             | Trial index for this combination (0…29)                       |
+| `tpr`, `fpr`, `precision`, `f1` | The metrics above, for this one trial             |
+| `detection_latency` | Samples between anomaly start and first correct alarm (lower = faster) |
+| `tp`, `fp`, `tn`, `fn` | The four raw counts from §12.1                             |
+
+**`results/csv/aggregated_results.csv`** (one row per detector × anomaly × window):
+Same idea, but each metric appears as a `_mean` and a `_std` pair (e.g.
+`f1_mean`, `f1_std`) summarising the 30 trials, plus `detection_rate` (fraction
+of trials in which the anomaly was caught at least once) and
+`avg_detection_latency` / `stdev_detection_latency`.
+
+### 12.5 How to read these together (one-line rule)
+
+> **Accuracy** says "looks busy/quiet", **F1** says "is it actually good", and
+> **TPR vs FPR** says "what trade-off did it make to get there." On this
+> imbalanced task, trust **F1** and the **TPR/FPR pair** — not raw accuracy.
+
+## 13. Expected Result Patterns
 
 Based on Phase 2's per-detector breakdown:
 
@@ -261,7 +387,7 @@ Based on Phase 2's per-detector breakdown:
 
 The dashboard's *Ensemble vs Best Individual* figure tells this story per anomaly type.
 
-## 13. Reading the Dashboard
+## 14. Reading the Dashboard
 
 [`results/dashboard.html`](../results/dashboard.html) — generated automatically by `main.py` unless `--no_dashboard`.
 
@@ -279,15 +405,15 @@ Sections (in order):
 
 Theme toggle is in the top-right (gold "Light Mode" button on dark theme).
 
-## 14. Limitations & Risks
+## 15. Limitations & Risks
 
 - **Class imbalance is unchanged.** Phase 3 reduces FPs but cannot raise precision above what the 5–20-positive-samples-out-of-N regime allows. Precision will still look low in absolute terms; F1 is the appropriate headline metric.
 - **Routing left off by default.** The `use_routing=True` flag exists for ablation only — it leaks ground-truth anomaly type into detection. Do not present routed results as "the ensemble".
 - **Page-Hinkley is not in the default sustained layer.** Drift detection may regress vs the Phase-2 best (Page-Hinkley). If this matters, swap `cusum` → `page_hinkley` in `ENSEMBLE.sustained_layer.members` and re-run.
 - **Single-feature only.** Phase 3 still operates on `n_bytes` only, like Phase 2. Multi-feature fusion is out of scope.
-- **No C++ port.** Per the user-confirmed scope, Phase 3 is a Python prototype. Phase 4 is the C++ port path (see §15).
+- **No C++ port.** Per the user-confirmed scope, Phase 3 is a Python prototype. Phase 4 is the C++ port path (see §16).
 
-## 15. Phase 4 Recommendations (C++ Port Path)
+## 16. Phase 4 Recommendations (C++ Port Path)
 
 The Phase 3 ensemble classes are written specifically with portability in mind: pure Python-level state, no dynamic dispatch beyond polymorphism, no NumPy in the ensemble layer (only inside the wrapped Phase 2 detectors, which themselves use only Welford / sort / arithmetic).
 
@@ -303,7 +429,7 @@ Recommended Phase 4 deliverables:
 2. A C++ harness that replays the Phase 3 raw CSV against the C++ ensemble and bit-matches Python alarm sequences trial-by-trial.
 3. A microbenchmark proving < 100 µs per `update()` and < 100 bytes of state per ensemble instance on the target ARM core.
 
-## 16. Repository Layout
+## 17. Repository Layout
 
 ```
 Phase 3/
@@ -339,7 +465,7 @@ Phase 3/
 
 The `src/` package convention from Phase 2 is intentionally dropped — Phase 3 sits flat under its own root so that placing Phase 2 onto `sys.path` (via the bridge) does not collide with Phase 3's own packages. This is the only structural deviation from Phase 2's layout.
 
-## 17. How to Run
+## 18. How to Run
 
 ### Setup
 
