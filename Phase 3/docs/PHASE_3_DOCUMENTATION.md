@@ -387,6 +387,50 @@ Based on Phase 2's per-detector breakdown:
 
 The dashboard's *Ensemble vs Best Individual* figure tells this story per anomaly type.
 
+### 13.1 Measured F1 — results snapshot
+
+> **Run config:** window = 20, N_TRIALS = 30, 99 IP series, **full-length
+> (uncropped) series**, all four anomaly types. Source:
+> `results/csv/metrics_report.csv` and `results/csv/aggregated_results.csv`.
+> F1 is absolute-small here because uncropped ~40,000-sample series make the
+> positive class (5–20 anomalous samples) extremely rare — read the columns
+> **relative to each other**, not against 1.0 (see §15).
+
+**F1 per detector** (mean over all four anomaly types, sorted best-first):
+
+| Detector | F1 | TPR | FPR |
+| -------- | -----: | ----: | ----: |
+| GatedCUSUM(n=2)                     | 0.0223 | 0.280 | 0.057 |
+| CUSUM(k=0.5, h=3.5)                 | 0.0075 | 0.480 | 0.120 |
+| GatedEWMA(n=2)                      | 0.0058 | 0.423 | 0.190 |
+| Sustained_OR(GatedEWMA+GatedCUSUM)  | 0.0057 | 0.431 | 0.191 |
+| EWMA(lambda=0.2, L=3.5)             | 0.0054 | 0.505 | 0.204 |
+| TwoLayerEnsemble                    | 0.0050 | 0.466 | 0.196 |
+| Spike_OR(GatedMAD+GatedZScore)      | 0.0042 | 0.348 | 0.056 |
+| GatedMAD(n=2)                       | 0.0042 | 0.346 | 0.056 |
+| GatedZScore(n=2)                    | 0.0036 | 0.065 | 0.007 |
+| Spike_AND(GatedMAD+GatedZScore)     | 0.0034 | 0.064 | 0.007 |
+| MAD(w=20, thr=3.5)                  | 0.0022 | 0.655 | 0.146 |
+| PageHinkley(delta=0.5, lambda=12.0) | 0.0021 | 0.346 | 0.139 |
+| SlidingWindow(mean, w=20, thr=3.0)  | 0.0019 | 0.270 | 0.286 |
+| ZScore(w=20, thr=3.0)               | 0.0017 | 0.378 | 0.051 |
+
+**Best F1 per anomaly type** (with the ensemble shown for comparison):
+
+| Anomaly | Best detector by F1 | F1 | TPR | FPR | TwoLayerEnsemble F1 |
+| ------- | ------------------- | -----: | ----: | ----: | -----: |
+| burst         | GatedCUSUM(n=2)       | 0.017 | 0.373 | 0.057 | 0.004 |
+| transient     | ZScore(w=20, thr=3.0) | 0.001 | 1.000 | 0.049 | 0.000 |
+| rate_shift    | GatedCUSUM(n=2)       | 0.038 | 0.315 | 0.049 | 0.009 |
+| gradual_drift | GatedCUSUM(n=2)       | 0.034 | 0.298 | 0.051 | 0.007 |
+
+**Reading:** by F1, the gated single detector **GatedCUSUM wins 3 of 4** anomaly
+types — it keeps FPR low while still catching enough, which F1 rewards. The
+`TwoLayerEnsemble` reaches the **highest recall** (TPR 0.54–0.56 per type) but its
+OR-fusion lifts FPR to ~0.20, so its F1 trails. This is the precision cost of the
+union design; F1 stays low in absolute terms because of the class imbalance
+described in §15.
+
 ## 14. Reading the Dashboard
 
 [`results/dashboard.html`](../results/dashboard.html) — generated automatically by `main.py` unless `--no_dashboard`.

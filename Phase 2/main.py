@@ -112,6 +112,15 @@ def main():
         except Exception as e:
             logger.warning(f"Dashboard generation failed: {e}. Run: python dashboard/generate_report.py")
 
+        # Refresh the React (Vite + ECharts) dashboard's data snapshot.
+        try:
+            from dashboard.export_data import main as export_react_data
+            export_react_data()
+            logger.info("React dashboard data -> dashboard/web/src/data.json "
+                        "(rebuild with: cd dashboard/web && npm run build)")
+        except Exception as e:
+            logger.warning(f"React data export skipped: {e}")
+
     logger.info(f"Done. Results in {cfg.RESULTS_CSV_DIR}/")
 
 
