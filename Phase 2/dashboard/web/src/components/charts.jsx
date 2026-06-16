@@ -6,7 +6,7 @@ import {
 } from "../lib/transform.js";
 import { Segmented, SegLabel } from "./ui.jsx";
 
-const EH = 380; // default chart height
+const EH = 380;
 
 function Chart({ option, height = EH }) {
   return (
@@ -24,7 +24,6 @@ const lab = (meta, d) => meta.det_labels[d] ?? d;
 const alab = (meta, a) => meta.anomaly_labels[a] ?? a;
 const col = (meta, d) => meta.colors[d] ?? "#888";
 
-/* ───────────────────────── Performance Matrix (heatmap) ───────────────── */
 export function PerfMatrix({ rows, meta, dets }) {
   const [metric, setMetric] = useState("detection_rate");
   const [w, setW] = useState(meta.window_sizes[0]);
@@ -90,7 +89,6 @@ export function PerfMatrix({ rows, meta, dets }) {
   );
 }
 
-/* ───────────────────────── TPR / FPR grouped bars ─────────────────────── */
 export function RateBars({ rows, meta, dets }) {
   const [metric, setMetric] = useState("tpr_mean");
   const series = useMemo(() => meanByDetAnom(rows, metric, dets, meta.anomaly_types), [rows, metric, dets, meta.anomaly_types]);
@@ -130,7 +128,6 @@ export function RateBars({ rows, meta, dets }) {
   );
 }
 
-/* ───────────────────────── Metric vs Window (lines) ───────────────────── */
 export function TrendLines({ rows, meta, dets }) {
   const [anom, setAnom] = useState(meta.anomaly_types[0]);
   const [metric, setMetric] = useState("detection_rate");
@@ -170,7 +167,6 @@ export function TrendLines({ rows, meta, dets }) {
   );
 }
 
-/* ───────────────────────── Latency bars ───────────────────────────────── */
 export function LatencyBars({ rows, meta, dets }) {
   const [anom, setAnom] = useState(meta.anomaly_types[0]);
   const data = useMemo(() => {
@@ -204,10 +200,9 @@ export function LatencyBars({ rows, meta, dets }) {
   );
 }
 
-/* ───────────────────────── Radar capability profile ───────────────────── */
 export function RadarProfile({ rows, meta, dets }) {
   const { norm, raw, axes } = useMemo(() => radar(rows, dets), [rows, dets]);
-  // label → detector short, so the tooltip can resolve raw values reliably.
+
   const byLabel = useMemo(() => {
     const m = {};
     dets.forEach((d) => { m[lab(meta, d)] = d; });

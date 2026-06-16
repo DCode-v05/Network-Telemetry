@@ -63,31 +63,28 @@ class AcfPeriodicity(Detector):
     def __init__(self, window: int = 30, threshold: float = 0.3, **params):
         super().__init__(window=window, threshold=threshold, **params)
 
-    # ------------------------------------------------------------------ lifecycle
     def reset(self) -> None:
-        super().reset()                     # sets self.n = 0, self.last_score = 0.0
+        super().reset()
         self.buf = RingBuffer(self.window)
-        self.period = 0                     # established dominant lag (0 == not yet set)
-        self.r_ref = 0.0                    # reference autocorrelation at that lag
+        self.period = 0
+        self.r_ref = 0.0
 
     def update(self, x: float) -> float:
         self.n += 1
         self.buf.push(x)
 
-        # Still filling the observation window -- cannot judge periodicity yet.
         if not self.buf.is_full():
             return 0.0
 
         vals = self.buf.values()
 
-        # Establish the dominant period exactly once, when the window first fills.
         if self.period == 0:
             best_lag, best_r = 0, -2.0
             for lag in range(2, max(3, self.window // 2) + 1):
                 r = acf(vals, lag)
                 if r > best_r:
                     best_r, best_lag = r, lag
-            if best_r < 0.2:                # signal isn't really periodic
+            if best_r < 0.2:
                 self.period = max(2, self.window // 4)
                 self.r_ref = 0.05
             else:
@@ -95,7 +92,6 @@ class AcfPeriodicity(Detector):
                 self.r_ref = best_r
             return 0.0
 
-        # Periodicity holds -> r_now ~ r_ref -> score ~ 0; collapse -> score up.
         r_now = acf(vals, self.period)
         score = self.r_ref - r_now
         if score < 0.0:
@@ -105,9 +101,7 @@ class AcfPeriodicity(Detector):
         self.last_score = score
         return score
 
-    # ------------------------------------------------------------- cost accounting
     def state_floats(self) -> int:
-        # period (int slot) + r_ref
         return 2
 
     def state_buffer_len(self) -> int:

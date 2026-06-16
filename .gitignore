@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Virtualenvs (regenerate: python -m venv env && pip install -r requirements.txt)
+env/
+venv/
+.venv/
+
+# Node / dashboards (regenerate: npm install / npm run build)
+node_modules/
+dist/
+.vite/
+
+# Compiled C artifacts (regenerate: src/c/build.ps1)
+Phase 4/src/c/build/
+
+# Large / downloaded datasets (regenerate: Zenodo, or Phase 4/scripts/download_data.py)
+Phase 2/data/
+Phase 4/data/
+
+# Transient run logs (results CSVs/JSON are kept)
+*.log
+**/results/progress.txt
+**/results/sweep.log
+
+# OS junk
+.DS_Store
+Thumbs.db

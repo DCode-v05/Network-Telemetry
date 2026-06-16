@@ -36,23 +36,18 @@ class Deriv(Detector):
     name = "deriv"
 
     def __init__(self, window: int = 30, threshold: float = 4.0, **params):
-        # Override only to supply the derivative-detector default threshold (4 sigma
-        # on the first difference). All other lifecycle behaviour is inherited.
         super().__init__(window=window, threshold=threshold, **params)
 
-    # ------------------------------------------------------------------ lifecycle
     def reset(self) -> None:
-        super().reset()                     # self.n = 0, self.last_score = 0.0
-        self.x_prev = 0.0                   # previous sample value
-        self.mu_d = 0.0                     # EWMA mean of the first difference
-        self.var_d = 1.0                    # EWMV variance of the first difference
+        super().reset()
+        self.x_prev = 0.0
+        self.mu_d = 0.0
+        self.var_d = 1.0
 
     def update(self, x: float) -> float:
         self.n += 1
-        # Smoothing factor matched to the window (span -> alpha conversion).
         alpha = 2.0 / (self.window + 1)
 
-        # First sample: no difference available yet -- seed state, emit 0.0.
         if self.n == 1:
             self.x_prev = x
             self.mu_d = 0.0
@@ -60,24 +55,20 @@ class Deriv(Detector):
             self.last_score = 0.0
             return 0.0
 
-        # Score the latest first-difference against the current baseline BEFORE
-        # folding it in, so a transient does not mask itself.
         d = x - self.x_prev
         sd = sqrt(self.var_d)
         score = abs(d - self.mu_d) / (sd + _EPS)
 
-        # EWMA / EWMV update of the difference baseline (Welford-style EWMV).
         diff = d - self.mu_d
         self.mu_d += alpha * diff
         self.var_d = (1.0 - alpha) * (self.var_d + alpha * diff * diff)
 
         self.x_prev = x
 
-        if not self.warm():                 # self.n <= self.warmup
+        if not self.warm():
             score = 0.0
         self.last_score = score
         return score
 
-    # ------------------------------------------------------------- cost accounting
     def state_floats(self) -> int:
-        return 3                            # x_prev, mu_d, var_d
+        return 3

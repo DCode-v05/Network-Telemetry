@@ -73,7 +73,7 @@ class VotingLayer(DetectorBase):
 
         if self._mode == "AND":
             is_anomaly = votes == len(self._children)
-        else:  # "OR"
+        else:
             is_anomaly = votes > 0
 
         max_score = max(r.score for r in results) if results else 0.0

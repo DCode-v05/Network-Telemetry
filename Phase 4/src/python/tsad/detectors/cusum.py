@@ -41,12 +41,12 @@ from __future__ import annotations
 from math import sqrt
 
 from tsad.core.base import Detector
-from tsad.core.ring_buffer import RingBuffer  # noqa: F401  (contract import; unused here)
-from tsad.core.stats import median_sorted, mad  # noqa: F401  (contract import; unused here)
+from tsad.core.ring_buffer import RingBuffer
+from tsad.core.stats import median_sorted, mad
 
 _EPS = 1e-9
-_SLACK_K = 0.5      # allowance, in residual-sigma units
-_SD_FLOOR = 1e-6    # keep the normalizer from collapsing on near-constant streams
+_SLACK_K = 0.5
+_SD_FLOOR = 1e-6
 
 
 class Cusum(Detector):
@@ -55,25 +55,20 @@ class Cusum(Detector):
     name = "cusum"
 
     def __init__(self, window: int = 30, threshold: float = 5.0, **params):
-        # Default decision threshold 5.0: a CUSUM statistic of 5 sigma-units of
-        # accumulated drift is a confident change-point at the chosen slack k=0.5.
         super().__init__(window=window, threshold=threshold, **params)
 
-    # ------------------------------------------------------------------ lifecycle
     def reset(self) -> None:
-        super().reset()                 # self.n = 0, self.last_score = 0.0
+        super().reset()
         self.alpha = 2.0 / (self.window + 1)
-        self.mu = 0.0                   # EWMA mean (baseline)
-        self.sd = 1.0                   # EWMA standard deviation (residual scale)
-        self.g_pos = 0.0                # upward CUSUM accumulator
-        self.g_neg = 0.0                # downward CUSUM accumulator
+        self.mu = 0.0
+        self.sd = 1.0
+        self.g_pos = 0.0
+        self.g_neg = 0.0
 
-    # ------------------------------------------------------------------- streaming
     def update(self, x: float) -> float:
         self.n += 1
         x = float(x)
 
-        # Seed the baseline on the very first sample; no residual to score yet.
         if self.n == 1:
             self.mu = x
             self.sd = 1.0
@@ -83,30 +78,25 @@ class Cusum(Detector):
         alpha = self.alpha
         k = _SLACK_K
 
-        # --- score from the CURRENT baseline (predict-then-update) ---
         r = (x - self.mu) / (self.sd + _EPS)
         self.g_pos = max(0.0, self.g_pos + r - k)
         self.g_neg = max(0.0, self.g_neg - r - k)
         score = self.g_pos if self.g_pos > self.g_neg else self.g_neg
 
-        # --- fold x into the EWMA baseline (mean then variance) ---
         diff = x - self.mu
         self.mu += alpha * diff
         self.sd = sqrt((1.0 - alpha) * (self.sd * self.sd + alpha * diff * diff))
         if self.sd < _SD_FLOOR:
             self.sd = _SD_FLOOR
 
-        # --- reset accumulators after an alarm so we don't latch ---
         if score >= self.threshold:
             self.g_pos = 0.0
             self.g_neg = 0.0
 
-        if not self.warm():             # self.n <= self.warmup
+        if not self.warm():
             score = 0.0
         self.last_score = score
         return score
 
-    # ------------------------------------------------------------- cost accounting
     def state_floats(self) -> int:
-        # mu, sd, g_pos, g_neg. (alpha is a derived constant, not part of the C struct.)
         return 4

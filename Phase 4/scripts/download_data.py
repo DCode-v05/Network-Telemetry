@@ -18,7 +18,6 @@ import urllib.request
 RAW = "https://raw.githubusercontent.com/numenta/NAB/master"
 
 FILES = [
-    # realTraffic -- occupancy / speed / travel-time sensors (network-like load signals)
     "realTraffic/occupancy_6005.csv",
     "realTraffic/occupancy_t4013.csv",
     "realTraffic/speed_6005.csv",
@@ -26,7 +25,6 @@ FILES = [
     "realTraffic/speed_t4013.csv",
     "realTraffic/TravelTime_387.csv",
     "realTraffic/TravelTime_451.csv",
-    # realKnownCause -- failures/misconfig with known root cause (telemetry-style)
     "realKnownCause/ec2_request_latency_system_failure.csv",
     "realKnownCause/machine_temperature_system_failure.csv",
     "realKnownCause/cpu_utilization_asg_misconfiguration.csv",
@@ -54,12 +52,11 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     ok, fail = [], []
 
-    # labels first
     try:
         n = _get(f"{RAW}/labels/combined_windows.json",
                  os.path.join(OUT, "combined_windows.json"))
         print(f"[ok]   combined_windows.json ({n} bytes)")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"[FAIL] combined_windows.json -> {e}")
         print("Cannot label NAB streams without the windows file; aborting real download.")
         return 1
@@ -70,7 +67,7 @@ def main():
             n = _get(f"{RAW}/data/{rel}", dest)
             print(f"[ok]   {rel} ({n} bytes)")
             ok.append(rel)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             print(f"[FAIL] {rel} -> {e}")
             fail.append(rel)
 

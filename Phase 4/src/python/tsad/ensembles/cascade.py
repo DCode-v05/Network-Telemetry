@@ -17,8 +17,8 @@ from tsad.core.ring_buffer import RingBuffer
 from tsad.core.stats import median_sorted, mad, MAD_TO_SIGMA
 from tsad.detectors.ewma_z import EwmaZ
 
-GATE = 0.5            # fraction of the cheap detector's threshold that opens the heavy path
-ROBUST_THR = 3.5      # robust-z threshold used to normalize the confirmation score
+GATE = 0.5
+ROBUST_THR = 3.5
 
 
 class Cascade(Detector):
@@ -35,10 +35,10 @@ class Cascade(Detector):
 
     def update(self, x):
         self.n += 1
-        n_cheap = self.ewma.update(x) / (self.ewma.threshold + 1e-9)   # cheap, O(1)
-        self.buf.push(x)                                              # cheap, O(1)
+        n_cheap = self.ewma.update(x) / (self.ewma.threshold + 1e-9)
+        self.buf.push(x)
         score = n_cheap
-        if n_cheap >= GATE and len(self.buf) >= 3:                    # candidate -> confirm
+        if n_cheap >= GATE and len(self.buf) >= 3:
             self.expensive_runs += 1
             sv = self.buf.sorted_values()
             med = median_sorted(sv)

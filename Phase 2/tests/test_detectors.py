@@ -1,11 +1,3 @@
-# tests/test_detectors.py
-# Tests for all 6 detectors.
-# Each test verifies:
-#   1. The detector can run on a clean signal without false alarms
-#   2. The detector fires on an obvious injected anomaly
-#   3. reset() truly clears state
-#   4. run_on_series() returns one result per sample
-# Run: pytest tests/test_detectors.py -v
 
 import pytest
 import numpy as np
@@ -21,7 +13,6 @@ from src.detectors.sliding_window_stats import SlidingWindowStatsDetector
 from src.detectors.base                import DetectionResult
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture
 def clean_signal():
@@ -35,7 +26,7 @@ def signal_with_burst():
     """Clean Gaussian with a large burst at position 150."""
     rng = np.random.default_rng(2)
     sig = rng.normal(0.0, 1.0, 200)
-    sig[150:154] += 15.0   # Very large spike — all detectors should catch this
+    sig[150:154] += 15.0
     return sig, 150
 
 
@@ -44,11 +35,10 @@ def signal_with_step():
     """Clean Gaussian with a sustained step shift starting at position 120."""
     rng = np.random.default_rng(3)
     sig = rng.normal(0.0, 1.0, 200)
-    sig[120:] += 8.0       # Big step change
+    sig[120:] += 8.0
     return sig, 120
 
 
-# ── Helper ────────────────────────────────────────────────────────────────────
 
 def any_alarm_after(results, start_idx, window=20):
     """Return True if any result in [start_idx, start_idx+window) is an alarm."""
@@ -60,7 +50,6 @@ def count_alarms(results):
     return sum(1 for r in results if r.is_anomaly)
 
 
-# ── Z-Score ───────────────────────────────────────────────────────────────────
 
 class TestZScoreDetector:
 
@@ -79,8 +68,6 @@ class TestZScoreDetector:
     def test_no_alarms_on_clean_signal(self, clean_signal):
         det = ZScoreDetector(window_size=20, threshold=3.0)
         results = det.run_on_series(clean_signal)
-        # Allow at most 5% false alarms — Gaussian tails at threshold=3 can produce
-        # occasional alarms on short (N=200) samples; 5% is a realistic budget
         assert count_alarms(results) / len(results) < 0.05
 
     def test_detects_burst(self, signal_with_burst):
@@ -97,7 +84,6 @@ class TestZScoreDetector:
         det = ZScoreDetector(window_size=20)
         det.run_on_series(clean_signal)
         det.reset()
-        # After reset, first update should not alarm
         result = det.update(0.0)
         assert not result.is_anomaly
 
@@ -108,7 +94,6 @@ class TestZScoreDetector:
             assert r.score == 0.0
 
 
-# ── MAD ───────────────────────────────────────────────────────────────────────
 
 class TestMADDetector:
 
@@ -119,7 +104,6 @@ class TestMADDetector:
     def test_no_alarms_on_clean_signal(self, clean_signal):
         det = MADDetector(window_size=20, threshold=3.5)
         results = det.run_on_series(clean_signal)
-        # Allow up to 5% — MAD on short windows has heavier tails than Z-Score
         assert count_alarms(results) / len(results) < 0.05
 
     def test_detects_burst(self, signal_with_burst):
@@ -138,7 +122,6 @@ class TestMADDetector:
         assert "MAD" in MADDetector(window_size=10).name
 
 
-# ── EWMA ──────────────────────────────────────────────────────────────────────
 
 class TestEWMADetector:
 
@@ -156,7 +139,6 @@ class TestEWMADetector:
         sig, start = signal_with_step
         det = EWMADetector(lambda_=0.3, L=3.0, warmup=30)
         results = det.run_on_series(sig)
-        # EWMA should detect the sustained step within 20 samples
         assert any_alarm_after(results, start, window=20)
 
     def test_detects_burst(self, signal_with_burst):
@@ -181,7 +163,6 @@ class TestEWMADetector:
         assert "EWMA" in EWMADetector().name
 
 
-# ── CUSUM ─────────────────────────────────────────────────────────────────────
 
 class TestCUSUMDetector:
 
@@ -206,7 +187,6 @@ class TestCUSUMDetector:
         for i, v in enumerate(sig):
             r = det.update(float(v))
             if r.is_anomaly:
-                # After alarm, accumulators should be zero
                 assert det._C_pos == 0.0
                 assert det._C_neg == 0.0
                 break
@@ -221,7 +201,6 @@ class TestCUSUMDetector:
         assert "CUSUM" in CUSUMDetector().name
 
 
-# ── Page-Hinkley ──────────────────────────────────────────────────────────────
 
 class TestPageHinkleyDetector:
 
@@ -245,7 +224,6 @@ class TestPageHinkleyDetector:
         assert "PageHinkley" in PageHinkleyDetector().name
 
 
-# ── Sliding Window Stats ──────────────────────────────────────────────────────
 
 class TestSlidingWindowStatsDetector:
 
@@ -283,7 +261,6 @@ class TestSlidingWindowStatsDetector:
         assert "SlidingWindow" in SlidingWindowStatsDetector(window_size=10).name
 
 
-# ── Cross-detector: base contract ─────────────────────────────────────────────
 
 class TestBaseContract:
     """Verify every detector satisfies the DetectorBase contract."""
@@ -317,6 +294,6 @@ class TestBaseContract:
     def test_reset_is_idempotent(self, det, clean_signal):
         det.run_on_series(clean_signal)
         det.reset()
-        det.reset()   # Second reset should not raise
+        det.reset()
         r = det.update(0.0)
         assert isinstance(r, DetectionResult)

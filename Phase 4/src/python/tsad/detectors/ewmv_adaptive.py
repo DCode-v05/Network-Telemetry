@@ -30,8 +30,8 @@ from __future__ import annotations
 from math import sqrt
 
 from tsad.core.base import Detector
-from tsad.core.ring_buffer import RingBuffer  # noqa: F401  (unused; kept for parity)
-from tsad.core.stats import median_sorted, mad  # noqa: F401  (unused; kept for parity)
+from tsad.core.ring_buffer import RingBuffer
+from tsad.core.stats import median_sorted, mad
 
 _EPS = 1e-9
 _SIGMA_FLOOR = 1e-6
@@ -45,23 +45,17 @@ class EwmvAdaptive(Detector):
     def __init__(self, window: int = 30, threshold: float = 3.0, **params):
         super().__init__(window=window, threshold=threshold, **params)
 
-    # ------------------------------------------------------------------ lifecycle
     def reset(self) -> None:
-        super().reset()  # sets self.n = 0, self.last_score = 0.0
-        # Smoothing rates derived from the window. ``lam`` is the standard
-        # EWMA weight for a span of ``window``; the baseline tracks 4x slower.
+        super().reset()
         self.lam = 2.0 / (self.window + 1)
         self.alpha_s = self.lam / 4.0
-        # Fixed streaming state (allocated once).
-        self.z = 0.0        # fast EWMA of x
-        self.mu = 0.0       # slow baseline
-        self.sigma = 1.0    # EWMA standard deviation
+        self.z = 0.0
+        self.mu = 0.0
+        self.sigma = 1.0
 
-    # ------------------------------------------------------------------ streaming
     def update(self, x: float) -> float:
         self.n += 1
 
-        # Seed all estimators from the first sample; no score is meaningful yet.
         if self.n == 1:
             self.z = x
             self.mu = x
@@ -69,11 +63,9 @@ class EwmvAdaptive(Detector):
             self.last_score = 0.0
             return 0.0
 
-        # ---- predict: score from state BEFORE folding x in --------------------
         control_sigma = self.sigma * sqrt(self.lam / (2.0 - self.lam))
         score = abs(self.z - self.mu) / (control_sigma + _EPS)
 
-        # ---- update: fold x into the smoother, baseline and scale -------------
         self.z = self.lam * x + (1.0 - self.lam) * self.z
         d = x - self.mu
         self.mu += self.alpha_s * d
@@ -82,14 +74,11 @@ class EwmvAdaptive(Detector):
         if self.sigma < _SIGMA_FLOOR:
             self.sigma = _SIGMA_FLOOR
 
-        # ---- warm-up gate -----------------------------------------------------
         if not self.warm():
             score = 0.0
 
         self.last_score = score
         return score
 
-    # ------------------------------------------------------------- cost accounting
     def state_floats(self) -> int:
-        # z, mu, sigma (lam/alpha_s are compile-time constants in the C twin).
         return 3

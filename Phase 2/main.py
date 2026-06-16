@@ -1,4 +1,3 @@
-# main.py — Iteration 2
 import os
 import sys
 import logging
@@ -24,7 +23,6 @@ def parse_args():
         action="store_true",
         help="Skip generating the interactive HTML dashboard after evaluation",
     )
-    # Path to Iteration 1 aggregated CSV for comparison plots
     parser.add_argument(
         "--iter1_csv",
         default=None,
@@ -71,7 +69,6 @@ def main():
         try:
             from src.evaluation.visualise import Visualiser, compare_iterations
 
-            # Iteration 2 standalone plots
             v2 = Visualiser(
                 results_csv_dir = cfg.RESULTS_CSV_DIR,
                 plots_dir       = cfg.RESULTS_PLT_DIR,
@@ -79,7 +76,6 @@ def main():
             )
             v2.run_all()
 
-            # Comparison plots if Iter1 CSV is provided
             if args.iter1_csv and os.path.exists(args.iter1_csv):
                 compare_dir = os.path.join(os.path.dirname(cfg.RESULTS_PLT_DIR), "comparison_plots")
                 compare_iterations(
@@ -100,7 +96,7 @@ def main():
 
     if not args.no_dashboard:
         try:
-            import plotly  # noqa: F401  — check before importing our module
+            import plotly
             from dashboard.generate_report import generate
             generate()
             logger.info("Dashboard -> results/dashboard.html")
@@ -112,7 +108,6 @@ def main():
         except Exception as e:
             logger.warning(f"Dashboard generation failed: {e}. Run: python dashboard/generate_report.py")
 
-        # Refresh the React (Vite + ECharts) dashboard's data snapshot.
         try:
             from dashboard.export_data import main as export_react_data
             export_react_data()

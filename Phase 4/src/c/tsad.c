@@ -1,23 +1,8 @@
-/* tsad.c -- C99 implementation of the nine Phase 4 streaming detectors.
- *
- * Ported line-for-line from the Python reference (tsad/core and
- * tsad/detectors). All arithmetic is in double precision to match the
- * float64 Python reference to < 1e-4.
- *
- * Key invariants mirrored from Python:
- *   - base warm-up: warmup = max(3, window/3); update returns 0.0 while
- *     n <= warmup (i.e. while NOT (n > warmup)).
- *   - ring buffer: push overwrites oldest when full; values() are chronological
- *     oldest -> newest.
- *   - median_sorted averages the two middles for even length.
- *   - mad = median of the sorted |v - med| deviations (raw, not scaled).
- *   - predict-then-update ordering and post-alarm resets reproduced exactly.
- */
+
 #include "tsad.h"
 #include <math.h>
 #include <string.h>
 
-/* ----- shared constants (mirror the Python module-level constants) -------- */
 #define EWMA_EPS        1e-9
 #define ROBUST_EPS      1e-9
 #define HAMPEL_EPS      1e-9
@@ -31,7 +16,6 @@
 #define ACF_EPS         1e-9
 #define MAD_TO_SIGMA    1.4826
 
-/* ----- slug table (order matches TsadKind) -------------------------------- */
 static const char *const SLUGS[TSAD_KIND_COUNT] = {
     "ewma_z",
     "robust_z",
@@ -58,31 +42,25 @@ int tsad_kind_from_slug(const char *slug) {
     return -1;
 }
 
-/* ----- ring-buffer helpers (mirror tsad/core/ring_buffer.py) -------------- */
-
-/* push: append a value, overwriting the oldest once full. O(1). */
 static void ring_push(TsadDetector *d, double x) {
     d->buf[d->head] = x;
     d->head = (d->head + 1) % d->window;
     if (d->count < d->window) d->count += 1;
 }
 
-/* Copy valid values in chronological (oldest -> newest) order into out[].
- * Returns the count. Mirrors RingBuffer.values(). */
 static int ring_values(const TsadDetector *d, double *out) {
     int i, idx;
     if (d->count < d->window) {
         for (i = 0; i < d->count; ++i) out[i] = d->buf[i];
         return d->count;
     }
-    /* full: buf[head:] + buf[:head] */
+
     idx = 0;
     for (i = d->head; i < d->window; ++i) out[idx++] = d->buf[i];
     for (i = 0; i < d->head; ++i) out[idx++] = d->buf[i];
     return d->count;
 }
 
-/* ascending insertion sort, in place. */
 static void insertion_sort(double *a, int n) {
     int i, j;
     for (i = 1; i < n; ++i) {
@@ -96,9 +74,6 @@ static void insertion_sort(double *a, int n) {
     }
 }
 
-/* ----- stats helpers (mirror tsad/core/stats.py) -------------------------- */
-
-/* median of an already-sorted array; averages the two middles for even len. */
 static double median_sorted(const double *sv, int m) {
     int mid;
     if (m == 0) return 0.0;
@@ -107,8 +82,6 @@ static double median_sorted(const double *sv, int m) {
     return 0.5 * (sv[mid - 1] + sv[mid]);
 }
 
-/* median absolute deviation about med (raw, NOT scaled by 1.4826).
- * vals are the chronological values; scratch must hold >= n doubles. */
 static double mad_about(const double *vals, int n, double med, double *scratch) {
     int i;
     if (n == 0) return 0.0;
@@ -120,8 +93,6 @@ static double mad_about(const double *vals, int n, double med, double *scratch) 
     return median_sorted(scratch, n);
 }
 
-/* lag-`lag` autocorrelation of vals[0..N-1] (mean-centred, biased denom).
- * Returns 0.0 when there are too few samples. Mirrors acf_periodicity.acf. */
 static double acf(const double *vals, int N, int lag) {
     int i;
     double mean = 0.0, num = 0.0, den = 0.0;
@@ -137,18 +108,14 @@ static double acf(const double *vals, int N, int lag) {
     return num / den;
 }
 
-/* warm(): True once n > warmup (allowed to alert). */
 static int tsad_warm(const TsadDetector *d) {
     return d->n > d->warmup;
 }
 
-/* ----- lifecycle ---------------------------------------------------------- */
-
 void tsad_reset(TsadDetector *d) {
-    /* base.reset(): n = 0, last_score = 0.0 */
+
     d->n = 0;
 
-    /* clear all union scalars / buffer */
     d->mu = 0.0; d->var = 0.0; d->sd = 0.0;
     d->g_pos = 0.0; d->g_neg = 0.0;
     d->xbar = 0.0; d->m_up = 0.0; d->min_up = 0.0; d->m_dn = 0.0; d->min_dn = 0.0;
@@ -167,7 +134,7 @@ void tsad_reset(TsadDetector *d) {
         break;
     case TSAD_ROBUST_Z:
     case TSAD_HAMPEL:
-        /* state lives entirely in the ring buffer */
+
         break;
     case TSAD_CUSUM:
         d->alpha = 2.0 / (d->window + 1.0);
@@ -177,7 +144,7 @@ void tsad_reset(TsadDetector *d) {
         d->g_neg = 0.0;
         break;
     case TSAD_PAGE_HINKLEY:
-        /* _alpha = 2/(window+1), _delta = 0.005 (delta stored in alpha2 below) */
+
         d->alpha = 2.0 / (d->window + 1.0);
         d->xbar = 0.0;
         d->sd = 1.0;
@@ -187,8 +154,8 @@ void tsad_reset(TsadDetector *d) {
         d->min_dn = 0.0;
         break;
     case TSAD_EWMV_ADAPTIVE:
-        /* lam = 2/(window+1); alpha_s = lam/4 */
-        d->alpha = 2.0 / (d->window + 1.0);   /* lam */
+
+        d->alpha = 2.0 / (d->window + 1.0);
         d->z = 0.0;
         d->mu = 0.0;
         d->sigma = 1.0;
@@ -204,7 +171,7 @@ void tsad_reset(TsadDetector *d) {
         d->r_ref = 0.0;
         break;
     case TSAD_HEAVY:
-        /* state lives entirely in the ring buffer */
+
         break;
     default:
         break;
@@ -216,15 +183,12 @@ void tsad_init(TsadDetector *d, TsadKind kind, int window) {
     if (window > TSAD_MAXW) window = TSAD_MAXW;
     d->kind = kind;
     d->window = window;
-    /* warmup = max(3, window // 3) */
+
     {
         int w3 = window / 3;
         d->warmup = (w3 > 3) ? w3 : 3;
     }
 
-    /* default thresholds per detector (from each subclass __init__). Not used
-     * by tsad_update (the score is threshold-independent except for the
-     * post-alarm resets in cusum / page_hinkley), but kept faithful. */
     switch (kind) {
     case TSAD_EWMA_Z:       d->threshold = 3.0; break;
     case TSAD_ROBUST_Z:     d->threshold = 3.5; break;
@@ -240,8 +204,6 @@ void tsad_init(TsadDetector *d, TsadKind kind, int window) {
 
     tsad_reset(d);
 }
-
-/* ----- per-detector update implementations -------------------------------- */
 
 static double upd_ewma_z(TsadDetector *d, double x) {
     double sd, z, diff, score;
@@ -277,7 +239,7 @@ static double upd_robust_z(TsadDetector *d, double x) {
         sd = MAD_TO_SIGMA * m;
         score = fabs(x - med) / (sd + ROBUST_EPS);
     }
-    /* predict-then-update */
+
     ring_push(d, x);
     if (!tsad_warm(d)) score = 0.0;
     return score;
@@ -286,7 +248,7 @@ static double upd_robust_z(TsadDetector *d, double x) {
 static double upd_hampel(TsadDetector *d, double x) {
     double score = 0.0;
     d->n += 1;
-    /* current sample is part of the window (key difference vs robust_z) */
+
     ring_push(d, x);
     if (d->count >= 3) {
         double vals[TSAD_MAXW], sv[TSAD_MAXW], scratch[TSAD_MAXW];
@@ -368,7 +330,7 @@ static double upd_page_hinkley(TsadDetector *d, double x) {
 }
 
 static double upd_ewmv_adaptive(TsadDetector *d, double x) {
-    double lam = d->alpha;          /* lam = 2/(window+1) */
+    double lam = d->alpha;
     double alpha_s = lam / 4.0;
     double control_sigma, score, dd;
     d->n += 1;
@@ -392,7 +354,7 @@ static double upd_ewmv_adaptive(TsadDetector *d, double x) {
 }
 
 static double upd_deriv(TsadDetector *d, double x) {
-    double alpha = d->alpha;       /* 2/(window+1) */
+    double alpha = d->alpha;
     double dd, sd, score, diff;
     d->n += 1;
     if (d->n == 1) {
@@ -422,23 +384,21 @@ static double upd_acf(TsadDetector *d, double x) {
     d->n += 1;
     ring_push(d, x);
 
-    /* still filling the observation window */
     if (d->count < d->window) return 0.0;
 
     n = ring_values(d, vals);
 
-    /* establish the dominant period exactly once */
     if (d->period == 0) {
         int best_lag = 0, lag;
         double best_r = -2.0;
         int hi = d->window / 2;
-        if (hi < 3) hi = 3;                 /* max(3, window//2) */
+        if (hi < 3) hi = 3;
         for (lag = 2; lag <= hi; ++lag) {
             double r = acf(vals, n, lag);
             if (r > best_r) { best_r = r; best_lag = lag; }
         }
         if (best_r < 0.2) {
-            int p = d->window / 4;          /* max(2, window//4) */
+            int p = d->window / 4;
             d->period = (p > 2) ? p : 2;
             d->r_ref = 0.05;
         } else {
@@ -519,20 +479,19 @@ double tsad_update(TsadDetector *d, double x) {
     }
 }
 
-/* ----- float32 deployment footprint (matches Python state_bytes) ---------- */
 int tsad_state_bytes(TsadKind kind, int window) {
     int floats = 0, buf = 0;
     switch (kind) {
-    case TSAD_EWMA_Z:        floats = 2; buf = 0;      break; /* mu, var */
+    case TSAD_EWMA_Z:        floats = 2; buf = 0;      break;
     case TSAD_ROBUST_Z:      floats = 0; buf = window; break;
     case TSAD_HAMPEL:        floats = 0; buf = window; break;
-    case TSAD_CUSUM:         floats = 4; buf = 0;      break; /* mu,sd,g_pos,g_neg */
-    case TSAD_PAGE_HINKLEY:  floats = 6; buf = 0;      break; /* xbar,sd,m_up,min_up,m_dn,min_dn */
-    case TSAD_EWMV_ADAPTIVE: floats = 3; buf = 0;      break; /* z,mu,sigma */
-    case TSAD_DERIV:         floats = 3; buf = 0;      break; /* x_prev,mu_d,var_d */
-    case TSAD_ACF:           floats = 2; buf = window; break; /* period,r_ref + window */
+    case TSAD_CUSUM:         floats = 4; buf = 0;      break;
+    case TSAD_PAGE_HINKLEY:  floats = 6; buf = 0;      break;
+    case TSAD_EWMV_ADAPTIVE: floats = 3; buf = 0;      break;
+    case TSAD_DERIV:         floats = 3; buf = 0;      break;
+    case TSAD_ACF:           floats = 2; buf = window; break;
     case TSAD_HEAVY:         floats = 0; buf = window; break;
     default:                 floats = 0; buf = 0;      break;
     }
-    return floats * 4 + buf * 4 + 8; /* +8: n + flags */
+    return floats * 4 + buf * 4 + 8;
 }

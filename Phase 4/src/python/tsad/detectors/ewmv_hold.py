@@ -37,8 +37,8 @@ class EwmvHold(Detector):
             return 0.0
         control_sigma = self.sigma * sqrt(self.lam / (2.0 - self.lam))
         score = abs(self.z - self.mu) / (control_sigma + 1e-9)
-        self.z = self.lam * x + (1 - self.lam) * self.z       # fast smoother always updates
-        if score < self.threshold:                            # freeze slow baseline on anomaly
+        self.z = self.lam * x + (1 - self.lam) * self.z
+        if score < self.threshold:
             d = x - self.mu
             self.mu += self.alpha_s * d
             self.sigma = sqrt((1 - self.alpha_s) * (self.sigma * self.sigma + self.alpha_s * d * d))

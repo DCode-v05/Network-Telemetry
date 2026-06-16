@@ -1,16 +1,3 @@
-# src/pipeline/window_buffer.py
-# ─────────────────────────────────────────────────────────────────────────────
-# Person 1 owns this file.
-#
-# This is the INTEGRATION CONTRACT. Every detector receives samples through
-# this buffer. Do not change the public API without informing the whole team.
-#
-# Design intent: mirrors how this would be implemented in C++ on-device.
-# - Fixed capacity (no dynamic resize)
-# - O(1) push, O(1) mean/variance via Welford's algorithm
-# - O(1) min/max via monotonic deque
-# - All math done in plain Python/numpy — no pandas
-# ─────────────────────────────────────────────────────────────────────────────
 
 import numpy as np
 from collections import deque
@@ -36,19 +23,15 @@ class WindowBuffer:
             raise ValueError("Window capacity must be at least 2.")
         self._capacity  = capacity
         self._buffer    = np.zeros(capacity, dtype=np.float64)
-        self._head      = 0       # Next write position
-        self._count     = 0       # Number of valid samples
+        self._head      = 0
+        self._count     = 0
 
-        # Welford's online algorithm state
         self._welf_mean = 0.0
-        self._welf_M2   = 0.0     # Sum of squared deviations
+        self._welf_M2   = 0.0
 
-        # Monotonic deques for O(1) min/max
-        # Each deque stores indices into _buffer
         self._max_deque: deque = deque()
         self._min_deque: deque = deque()
 
-    # ── Public API ────────────────────────────────────────────────────────────
 
     def push(self, value: float) -> None:
         """
@@ -58,19 +41,14 @@ class WindowBuffer:
         value = float(value)
 
         if self._count == self._capacity:
-            # Evict the oldest sample from Welford state
             old_value = self._buffer[self._head]
             self._welford_remove(old_value)
         else:
             self._count += 1
 
-        # Write new value
         self._buffer[self._head] = value
         self._welford_add(value)
 
-        # Update monotonic deques (using logical index = current _count-based position)
-        # We use a simpler approach: rebuild deques lazily from buffer when needed.
-        # For small N (≤50) this is O(N) but perfectly acceptable.
 
         self._head = (self._head + 1) % self._capacity
 
@@ -142,7 +120,6 @@ class WindowBuffer:
         self._welf_mean = 0.0
         self._welf_M2   = 0.0
 
-    # ── Internal helpers ──────────────────────────────────────────────────────
 
     def _view(self) -> np.ndarray:
         """
@@ -151,7 +128,6 @@ class WindowBuffer:
         """
         if self._count < self._capacity:
             return self._buffer[:self._count]
-        # Buffer is full and may be wrapped — reconstruct in order
         tail = self._buffer[self._head:]
         head = self._buffer[:self._head]
         return np.concatenate([tail, head])
@@ -168,7 +144,7 @@ class WindowBuffer:
         Welford's online downdate (remove oldest value).
         Used when buffer is full and oldest sample is evicted.
         """
-        n = self._count  # still old count (before removal)
+        n = self._count
         if n <= 1:
             self._welf_mean = 0.0
             self._welf_M2   = 0.0
@@ -176,4 +152,4 @@ class WindowBuffer:
         old_mean        = self._welf_mean
         self._welf_mean = (self._welf_mean * n - value) / (n - 1)
         self._welf_M2  -= (value - old_mean) * (value - self._welf_mean)
-        self._welf_M2   = max(0.0, self._welf_M2)  # Guard numerical error
+        self._welf_M2   = max(0.0, self._welf_M2)

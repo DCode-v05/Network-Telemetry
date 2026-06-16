@@ -19,7 +19,6 @@ from __future__ import annotations
 import numpy as np
 
 
-# ---------------------------------------------- pure-numpy precision/recall pass
 def _pr_pass(labels, scores):
     """One descending-score pass -> (s, precision, recall) cumulative arrays.
 
@@ -50,7 +49,6 @@ def average_precision(labels, scores):
     return float(np.sum(dr * precision))
 
 
-# --------------------------------------------------------------------- primitives
 def confusion(labels, preds):
     labels = np.asarray(labels).astype(bool)
     preds = np.asarray(preds).astype(bool)
@@ -78,7 +76,6 @@ def mcc(labels, preds):
     return num / np.sqrt(den)
 
 
-# --------------------------------------------------------- threshold-free metrics
 def pr_auc(labels, scores):
     return average_precision(labels, scores)
 
@@ -113,7 +110,6 @@ def best_f1_threshold(labels, scores):
     if labels.sum() == 0:
         return 0.0, 0.0, 0.0, 0.0
     if scores.max() == scores.min():
-        # degenerate: only the "flag everything" operating point exists
         p, r, f = prf(labels, np.ones_like(labels))
         return float(scores.min()), f, p, r
     s, precision, recall = _pr_pass(labels, scores)
@@ -123,7 +119,6 @@ def best_f1_threshold(labels, scores):
     return float(s[i]), float(f1[i]), float(precision[i]), float(recall[i])
 
 
-# ---------------------------------------------------- point-adjusted (flagged) F1
 def point_adjusted_preds(preds, events):
     """If any sample inside an event is flagged, flag the whole event (PA convention)."""
     preds = np.asarray(preds).astype(int).copy()
@@ -152,7 +147,6 @@ def best_pa_f1(labels, scores, events):
     return float(best)
 
 
-# ----------------------------------------------------- event-level / operational
 def detection_latency(events, preds, tol=3):
     """(detected_fraction, mean_latency_samples) measured from each event's start.
 
@@ -244,7 +238,7 @@ def best_event_f1(labels, scores, events, n=None, tol=2):
     uniq = np.unique(scores)
     if len(uniq) > 200:
         bulk = np.quantile(scores, np.linspace(0.0, 1.0, 150))
-        tail = np.sort(scores)[-60:]            # dense resolution near the top
+        tail = np.sort(scores)[-60:]
         uniq = np.unique(np.concatenate([bulk, tail]))
     best = (0.0, 0.0, 0.0)
     for thr in uniq:
@@ -271,37 +265,34 @@ def nab_like_score(labels, preds, events, n, profile="standard"):
     w = NAB_PROFILES[profile]
     preds = np.asarray(preds).astype(int)
     num_w = max(1, len(events))
-    win = max(2, int(0.10 * n / num_w))  # window length per anomaly (NAB heuristic)
+    win = max(2, int(0.10 * n / num_w))
     windows = []
     for (s, e) in events:
-        c = s  # reward detection near onset
+        c = s
         windows.append((max(0, c - win // 2), min(n - 1, c + win // 2)))
 
     raw = 0.0
     in_window = np.zeros(n, dtype=bool)
     for (ws, we) in windows:
         in_window[ws:we + 1] = True
-        # first detection inside this window
         seg = preds[ws:we + 1]
         idx = np.argmax(seg) if seg.any() else -1
         if seg.any():
             length = max(1, we - ws)
-            rel = -1.0 + (idx / length)   # earliest -> -1 (max reward)
-            raw += w["tp"] * (_nab_sigmoid(rel) + 1.0) / 2.0  # map to (0,1]
+            rel = -1.0 + (idx / length)
+            raw += w["tp"] * (_nab_sigmoid(rel) + 1.0) / 2.0
         else:
             raw -= w["fn"]
-    # false positives (flags outside any window)
     fp_idx = np.where(preds.astype(bool) & ~in_window)[0]
     raw -= w["fp"] * len(fp_idx)
 
-    null_score = -w["fn"] * len(windows)             # detect nothing
-    perfect = w["tp"] * len(windows)                 # all windows detected at onset, no FP
+    null_score = -w["fn"] * len(windows)
+    perfect = w["tp"] * len(windows)
     if perfect - null_score <= 0:
         return 0.0
     return float(100.0 * (raw - null_score) / (perfect - null_score))
 
 
-# --------------------------------------------------------------------- top level
 def evaluate(labels, scores, events, n=None, vus_buffer=10):
     """Full metric bundle for one (detector, stream) run.
 
@@ -315,11 +306,6 @@ def evaluate(labels, scores, events, n=None, vus_buffer=10):
 
     thr, f1, precision, recall = best_f1_threshold(labels, scores)
     preds = (scores >= thr).astype(int)
-    # event_f1     : event-tolerant F1 at the POINT operating point (conservative).
-    # event_f1_opt : event-tolerant F1 at the EVENT-optimal operating point -- the threshold
-    #                an operator tunes to for event detection within +/-2 samples. This is the
-    #                operationally-correct headline for point/transient anomalies; it is
-    #                non-exploitable (flag-everything -> low sample-precision).
     ev_p, ev_r, ev_f1 = event_prf(preds, events, n=n, tol=2)
     eo_p, eo_r, eo_f1 = best_event_f1(labels, scores, events, n=n, tol=2)
 

@@ -1,8 +1,3 @@
-# src/evaluation/metrics.py
-# Person 6 owns this file.
-#
-# All evaluation metrics for Phase 2.
-# Inputs are always: ground truth label arrays + detector output arrays.
 
 import numpy as np
 from typing import List, Optional
@@ -19,17 +14,13 @@ class EvalMetrics:
     window_size    : int
     trial          : int
 
-    # Core metrics
-    tpr            : float   # True Positive Rate = TP / (TP + FN)
-    fpr            : float   # False Positive Rate = FP / (FP + TN)
-    precision      : float   # TP / (TP + FP)
-    f1             : float   # 2 * (precision * recall) / (precision + recall)
+    tpr            : float
+    fpr            : float
+    precision      : float
+    f1             : float
 
-    # Detection latency (samples after anomaly start before first alarm)
-    # -1 means the anomaly was never detected
     detection_latency : int
 
-    # Raw counts
     tp  : int
     fp  : int
     tn  : int
@@ -96,7 +87,6 @@ def compute_metrics(
         else 0.0
     )
 
-    # Detection latency: first alarm index within detection_window after inject_start
     latency = _compute_latency(predictions, inject_start, detection_window)
 
     return EvalMetrics(

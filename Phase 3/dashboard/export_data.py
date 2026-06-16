@@ -15,25 +15,22 @@ from datetime import datetime
 
 import pandas as pd
 
-# Phase 3 root → import the existing metric helpers unchanged.
 _HERE   = os.path.dirname(os.path.abspath(__file__))
 _PHASE3 = os.path.dirname(_HERE)
 if _PHASE3 not in sys.path:
     sys.path.insert(0, _PHASE3)
 
-from evaluation.phase3_metrics import (   # noqa: E402
+from evaluation.phase3_metrics import (
     load_aggregated_csv, load_raw_csv,
     ensemble_vs_best_single, gate_fp_reduction, per_anomaly_winner,
     _is_ensemble_name, _is_gated_name,
 )
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
 AGG_CSV     = os.path.join(_PHASE3, "results", "csv", "aggregated_results.csv")
 RAW_CSV     = os.path.join(_PHASE3, "results", "csv", "raw_trial_results.csv")
 P2_AGG_CSV  = os.path.join(_PHASE3, "..", "Phase 2", "results", "csv", "aggregated_results.csv")
 OUTPUT_JSON = os.path.join(_HERE, "web", "src", "data.json")
 
-# ── Config (mirrors generate_report.py) ───────────────────────────────────────
 ANOMALY_TYPES = ["burst", "rate_shift", "gradual_drift", "transient"]
 
 DET_ORDER = [
@@ -117,7 +114,6 @@ def build_gate_fp(raw_rows) -> list:
             "baseline_tp": int(m["baseline_tp"]),
             "gated_tp": int(m["gated_tp"]),
         })
-    # Sort by FP reduction descending
     out.sort(key=lambda x: (x["fp_reduction_pct"] or 0), reverse=True)
     return out
 
@@ -216,11 +212,9 @@ def build_kpis(df: pd.DataFrame, gate_fp: list, evb: list) -> dict:
     ens = df[df["detector_short"] == "TwoLayerEnsemble"]
     ens_fpr = float(ens["fpr_mean"].mean()) if len(ens) else None
     ens_tpr = float(ens["tpr_mean"].mean()) if len(ens) else None
-    # Mean gate FP reduction across families
     reds = [g["fp_reduction_pct"] for g in gate_fp if g["fp_reduction_pct"] is not None]
     mean_red = sum(reds) / len(reds) if reds else 0.0
     best_gate = gate_fp[0] if gate_fp else None
-    # ensemble FPR ≤ best-single FPR count
     wins = sum(1 for e in evb if e["ensemble_fpr"] is not None
                and e["best_fpr"] is not None and e["ensemble_fpr"] <= e["best_fpr"])
     return {

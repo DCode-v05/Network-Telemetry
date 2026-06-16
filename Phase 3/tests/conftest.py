@@ -15,5 +15,4 @@ _PHASE3_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PHASE3_ROOT not in sys.path:
     sys.path.insert(0, _PHASE3_ROOT)
 
-# Activate the bridge so Phase 2 symbols become importable.
-import _phase2_bridge  # noqa: F401, E402
+import _phase2_bridge

@@ -37,8 +37,6 @@ from collections import defaultdict
 from typing import Any, Dict, List
 
 
-# Dashboard / roster order (individuals -> gated -> voting -> ensemble).
-# Detectors not listed here are appended afterwards in discovery order.
 _FAMILY_ORDER = [
     "ZScore", "MAD", "EWMA", "CUSUM", "PageHinkley", "SlidingWindow",
     "GatedCUSUM", "GatedEWMA", "GatedMAD", "GatedZScore",
@@ -131,15 +129,12 @@ def report(rows: List[Dict[str, Any]], per_anomaly: bool = False) -> List[Dict[s
           f"windows={windows}  anomalies={anomalies}  trials/cell={len(n_trials)}")
     print("=" * 72)
 
-    # 1. Accuracy — sorted best-first (matches the reference screenshot).
     by_acc = sorted(per_det, key=lambda r: r["accuracy"], reverse=True)
     _print_table("ACCURACY PER DETECTOR", by_acc, ["accuracy"])
 
-    # 2. F1 — sorted best-first.
     by_f1 = sorted(per_det, key=lambda r: r["f1"], reverse=True)
     _print_table("F1 SCORE PER DETECTOR", by_f1, ["f1"])
 
-    # 3. TPR vs FPR — kept in roster order so the precision/recall trade is legible.
     by_roster = sorted(per_det, key=lambda r: _order_key(r["detector"]))
     _print_table("TPR vs FPR PER DETECTOR", by_roster, ["tpr", "fpr"])
 

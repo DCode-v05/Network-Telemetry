@@ -1,4 +1,3 @@
-# src/detectors/ewma.py
 import math
 from src.detectors.base import DetectorBase, DetectionResult
 
@@ -16,7 +15,7 @@ class EWMADetector(DetectorBase):
             raise ValueError("lambda_ must be in (0, 1)")
         self._lambda  = lambda_
         self._L       = L
-        self._warmup  = max(warmup, 10)   # never below 10
+        self._warmup  = max(warmup, 10)
 
         self._S       = 0.0
         self._mu0     = 0.0

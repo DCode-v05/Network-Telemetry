@@ -26,7 +26,6 @@ function filterGroup(dets, meta, g) {
   return dets.filter((d) => (meta.det_group[d] ?? "individual") === g);
 }
 
-/* ───────────────────────── Performance Matrix ─────────────────────────── */
 export function PerfMatrix({ rows, meta, dets }) {
   const [metric, setMetric] = useState("detection_rate");
   const [w, setW] = useState(meta.window_sizes[0]);
@@ -80,7 +79,6 @@ export function PerfMatrix({ rows, meta, dets }) {
   );
 }
 
-/* ───────────────────────── Rate bars (group filtered) ─────────────────── */
 export function RateBars({ rows, meta, dets }) {
   const [metric, setMetric] = useState("tpr_mean");
   const [grp, setGrp] = useState("all");
@@ -119,7 +117,6 @@ export function RateBars({ rows, meta, dets }) {
   );
 }
 
-/* ───────────────────────── Latency bars ───────────────────────────────── */
 export function LatencyBars({ rows, meta, dets }) {
   const [anom, setAnom] = useState(meta.anomaly_types[0]);
   const data = useMemo(() => latency(rows, dets, [anom]).sort((a, b) => a.value - b.value),
@@ -145,7 +142,6 @@ export function LatencyBars({ rows, meta, dets }) {
   );
 }
 
-/* ───────────────────────── Radar (group filtered) ─────────────────────── */
 export function RadarProfile({ rows, meta, dets }) {
   const [grp, setGrp] = useState("ensemble");
   const shown = filterGroup(dets, meta, grp);

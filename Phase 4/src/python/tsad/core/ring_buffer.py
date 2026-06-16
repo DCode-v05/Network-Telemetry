@@ -13,8 +13,8 @@ class RingBuffer:
     def __init__(self, capacity: int):
         self.capacity = int(capacity)
         self.buf = [0.0] * self.capacity
-        self.head = 0     # index of next write
-        self.count = 0    # number of valid elements (<= capacity)
+        self.head = 0
+        self.count = 0
 
     def push(self, x: float) -> None:
         """Append a value, overwriting the oldest once full. O(1)."""

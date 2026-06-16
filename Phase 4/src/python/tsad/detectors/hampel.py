@@ -29,10 +29,10 @@ from __future__ import annotations
 from tsad.core.base import Detector
 from tsad.core.ring_buffer import RingBuffer
 from tsad.core.stats import median_sorted, mad
-from math import sqrt  # noqa: F401  (kept for parity with the C twin / contract)
+from math import sqrt
 
 EPS = 1e-9
-MAD_TO_SIGMA = 1.4826  # MAD * k estimates the Gaussian standard deviation
+MAD_TO_SIGMA = 1.4826
 
 
 class Hampel(Detector):
@@ -40,19 +40,14 @@ class Hampel(Detector):
 
     name = "hampel"
 
-    # NOTE: __init__ is inherited. The base class default threshold is already
-    # 3.0 (the conventional Hampel cutoff), and the registry passes no threshold
-    # for this slug, so the default is honoured without overriding __init__.
 
-    # ------------------------------------------------------------------ lifecycle
     def reset(self) -> None:
-        super().reset()                       # sets self.n = 0, self.last_score = 0.0
-        self.buf = RingBuffer(self.window)    # fixed-capacity trailing window
+        super().reset()
+        self.buf = RingBuffer(self.window)
 
     def update(self, x: float) -> float:
         self.n += 1
         x = float(x)
-        # Current sample is part of the window (key difference vs robust_z).
         self.buf.push(x)
 
         if len(self.buf) >= 3:
@@ -64,8 +59,7 @@ class Hampel(Detector):
         else:
             score = 0.0
 
-        # Warm-up gate: no alerting until enough samples have been seen.
-        if not self.warm():                   # self.n <= self.warmup
+        if not self.warm():
             score = 0.0
             self.last_score = score
             return score
@@ -73,7 +67,6 @@ class Hampel(Detector):
         self.last_score = score
         return score
 
-    # ------------------------------------------------------------- cost accounting
     def state_floats(self) -> int:
         """No retained float scalars beyond the ring buffer."""
         return 0

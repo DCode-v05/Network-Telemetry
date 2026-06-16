@@ -1,4 +1,3 @@
-# src/detectors/cusum.py
 import math
 from src.detectors.base import DetectorBase, DetectionResult
 

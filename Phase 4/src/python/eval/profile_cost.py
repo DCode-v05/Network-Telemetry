@@ -24,10 +24,7 @@ def time_per_sample(factory, values, reps=30, inner=None):
     xs = [float(v) for v in values]
     n = len(xs)
     if inner is None:
-        # ~4k updates per pass: enough for stable timing, cheap enough for the sweep.
-        # (The authoritative per-sample cost is the C benchmark; this is a cross-check.)
         inner = max(1, 4000 // max(1, n))
-    # warm-up pass (fills caches, triggers any lazy work)
     d = factory()
     for x in xs:
         d.update(x)
@@ -49,7 +46,7 @@ def time_per_sample(factory, values, reps=30, inner=None):
 
 def mem_bytes(factory, values):
     """Peak Python heap (bytes) attributable to constructing + running one detector."""
-    xs = [float(v) for v in values[:200]]   # peak stabilises quickly; cap for speed
+    xs = [float(v) for v in values[:200]]
     tracemalloc.start()
     tracemalloc.clear_traces()
     base = tracemalloc.take_snapshot()

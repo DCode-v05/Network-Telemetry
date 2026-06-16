@@ -16,7 +16,6 @@ from _phase2_bridge              import (
 )
 
 
-# ---------- mock-driven logic tests ---------------------------------------
 
 def test_spike_only_attribution():
     """When only the spike layer fires, alarm_value should be 1.0."""
@@ -69,10 +68,10 @@ def test_reset_propagates_to_both_layers():
     spike     = MockDetector([True], name="Spike")
     sustained = MockDetector([True], name="Sustained")
     ens       = TwoLayerEnsemble(spike, sustained)
-    ens.update(0.0)                                # script consumed
-    assert ens.update(0.0).is_anomaly is False     # exhausted both → False
+    ens.update(0.0)
+    assert ens.update(0.0).is_anomaly is False
     ens.reset()
-    assert ens.update(0.0).is_anomaly is True      # script replays → True
+    assert ens.update(0.0).is_anomaly is True
 
 
 def test_name_default():
@@ -89,7 +88,6 @@ def test_name_with_suffix():
     assert ens.name == "TwoLayerEnsemble[default]"
 
 
-# ---------- real-detector integration tests ------------------------------
 
 def _build_default_ensemble(window_size: int = 20) -> TwoLayerEnsemble:
     """Same composition the harness will use in the full benchmark."""
@@ -124,13 +122,11 @@ def test_burst_triggers_within_window():
     signal = _make_synthetic_signal(rng, n=200)
     inject_start = 100
     duration     = 5
-    signal[inject_start:inject_start + duration] += 6.0  # well above 3.5σ MAD threshold
+    signal[inject_start:inject_start + duration] += 6.0
 
     ens     = _build_default_ensemble(window_size=20)
     results = ens.run_on_series(signal)
 
-    # at least one alarm in [inject_start, inject_start + 10) — confirmation gate
-    # adds up to 2 samples of latency
     region = results[inject_start : inject_start + 10]
     assert any(r.is_anomaly for r in region), \
         "Ensemble failed to detect a 6σ 5-sample burst within 10 samples"
@@ -138,9 +134,6 @@ def test_burst_triggers_within_window():
 
 def test_clean_signal_low_fpr():
     """On a 200-sample stationary signal, ensemble FPR must stay below 10%."""
-    # Note: the headline goal is < 5%, but with only 200 samples and stochastic
-    # warmup, allow a slightly wider band per trial. The 30-trial benchmark
-    # smooths this out.
     rng    = np.random.default_rng(0)
     signal = _make_synthetic_signal(rng, n=200)
     ens    = _build_default_ensemble(window_size=20)
@@ -163,5 +156,4 @@ def test_burst_attribution_is_spike():
 
     fired_in_burst = [r for r in results[inject_start : inject_start + 10] if r.is_anomaly]
     assert fired_in_burst, "no alarm to inspect attribution on"
-    # First in-window alarm should come from the spike layer
     assert fired_in_burst[0].alarm_value == 1.0

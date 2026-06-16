@@ -110,7 +110,7 @@ def inject_periodicity(values, sigma, rng, seg_len=None, mode=None, margin=40):
     local_mean = float(np.mean(seg))
     if mode == "dropout":
         v[start:end + 1] = local_mean + rng.normal(0.0, sigma, size=seg.shape)
-    else:  # scramble: destroy phase by permuting the segment samples
+    else:
         perm = rng.permutation(seg.shape[0])
         v[start:end + 1] = seg[perm]
     labels[start:end + 1] = 1

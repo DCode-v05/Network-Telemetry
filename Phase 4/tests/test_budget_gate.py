@@ -34,7 +34,6 @@ def test_buffered_fit_at_small_window(name):
 
 
 def test_buffered_exceed_at_large_window():
-    # A real finding: float32 window buffers blow the 100-byte budget past ~window 22.
     assert registry.make("robust_z", window=50).state_bytes() >= 100
 
 

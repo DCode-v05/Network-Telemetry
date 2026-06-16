@@ -1,6 +1,3 @@
-# tests/test_injector.py
-# Tests for AnomalyInjector — verifies injection correctness and label accuracy.
-# Run: pytest tests/test_injector.py -v
 
 import pytest
 import numpy as np
@@ -42,7 +39,6 @@ class TestBurstInjection:
     def test_signal_elevated_in_injected_region(self, injector, clean_signal):
         result = injector.inject_burst(clean_signal, magnitude=5.0, duration=3)
         s, e = result.inject_start, result.inject_end
-        # Injected samples must be higher than the clean baseline at those positions
         diff = result.signal[s:e] - clean_signal[s:e]
         assert np.all(diff > 0)
 
@@ -67,7 +63,7 @@ class TestBurstInjection:
         for seed in range(20):
             r = AnomalyInjector(random_seed=seed).inject_burst(clean_signal)
             starts.add(r.inject_start)
-        assert len(starts) > 1  # Should not always inject at same position
+        assert len(starts) > 1
 
 
 class TestRateShiftInjection:
@@ -76,7 +72,6 @@ class TestRateShiftInjection:
         result = injector.inject_rate_shift(clean_signal, magnitude=3.0, duration=20)
         s, e = result.inject_start, result.inject_end
         diff = result.signal[s:e] - clean_signal[s:e]
-        # All shifted samples should be > 0
         assert np.all(diff > 0)
 
     def test_duration_matches_label_count(self, injector, clean_signal):
@@ -94,7 +89,6 @@ class TestGradualDriftInjection:
         result = injector.inject_gradual_drift(clean_signal, slope=0.2, duration=15)
         s, e = result.inject_start, result.inject_end
         diff = result.signal[s:e] - clean_signal[s:e]
-        # Each successive sample should be more elevated than the previous
         for i in range(1, len(diff)):
             assert diff[i] > diff[i - 1], f"Drift not monotone at index {i}"
 

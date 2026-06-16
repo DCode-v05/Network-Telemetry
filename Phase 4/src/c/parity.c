@@ -1,10 +1,4 @@
-/* parity.c -- numerical-parity harness for the C twin.
- *
- * Usage:  parity <slug> <window>
- * Reads doubles from stdin (whitespace/newline separated) until EOF. For EACH
- * value it prints the tsad_update score with printf("%.10g\n", score).
- * One score per input value. No extra output on stdout.
- */
+
 #include "tsad.h"
 #include <stdio.h>
 #include <stdlib.h>

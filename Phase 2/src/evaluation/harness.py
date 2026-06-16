@@ -1,4 +1,3 @@
-# src/evaluation/harness.py
 import os
 import csv
 import logging
@@ -21,18 +20,17 @@ def _sanitise(text: str) -> str:
     Prevents UnicodeEncodeError when writing CSV on Windows (cp1252 encoding).
     """
     replacements = {
-        "\u03bb": "lambda",   # λ
-        "\u03b4": "delta",    # δ
-        "\u03bc": "mu",       # μ
-        "\u03c3": "sigma",    # σ
-        "\u03b1": "alpha",    # α
+        "\u03bb": "lambda",
+        "\u03b4": "delta",
+        "\u03bc": "mu",
+        "\u03c3": "sigma",
+        "\u03b1": "alpha",
         "\u2019": "'",
         "\u2014": "-",
         "\u2013": "-",
     }
     for char, replacement in replacements.items():
         text = text.replace(char, replacement)
-    # Final safety net: encode to ASCII, replacing anything still non-ASCII
     return text.encode("ascii", errors="replace").decode("ascii")
 
 
@@ -45,7 +43,6 @@ def build_detectors(window_size: int) -> List[DetectorBase]:
     from src.detectors.sliding_window_stats import SlidingWindowStatsDetector
 
     p = cfg.DETECTORS
-    # Warmup must be at least 20 regardless of window_size to get a stable baseline
     warmup = max(window_size, 20)
 
     return [
@@ -164,7 +161,6 @@ def _save_raw_results(results: List[EvalMetrics]) -> None:
     if not results:
         return
     rows = [r.to_dict() for r in results]
-    # Sanitise all string values to ASCII — prevents Windows cp1252 crash
     rows = [
         {k: (_sanitise(v) if isinstance(v, str) else v) for k, v in row.items()}
         for row in rows
@@ -193,7 +189,6 @@ def _save_aggregated_results(aggregated: List[Dict[str, Any]]) -> None:
     path = os.path.join(cfg.RESULTS_CSV_DIR, "aggregated_results.csv")
     if not aggregated:
         return
-    # Sanitise strings
     clean = [
         {k: (_sanitise(v) if isinstance(v, str) else v) for k, v in row.items()}
         for row in aggregated

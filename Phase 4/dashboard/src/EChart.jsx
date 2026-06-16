@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import * as echarts from "echarts";
 
-// Lightweight ECharts wrapper: builds once, updates option on change, resizes with window.
 export default function EChart({ option, height = 440 }) {
   const ref = useRef(null);
   const chart = useRef(null);

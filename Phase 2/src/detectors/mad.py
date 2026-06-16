@@ -1,8 +1,3 @@
-# src/detectors/mad.py
-# Person 3 owns this file.
-#
-# MAD (Median Absolute Deviation) anomaly detector.
-# More robust than Z-Score for heavy-tailed / bursty traffic distributions.
 
 import numpy as np
 from src.detectors.base import DetectorBase, DetectionResult
@@ -29,7 +24,6 @@ class MADDetector(DetectorBase):
                   From config.py: DETECTORS["mad"]["threshold"]
     """
 
-    # Consistency constant: makes MAD ≈ σ under normality
     _CONSISTENCY_FACTOR = 0.6745
 
     def __init__(self, window_size: int, threshold: float = 3.5):
@@ -63,8 +57,6 @@ class MADDetector(DetectorBase):
                 score       = abs(robust_z)
                 alarm_value = robust_z
                 is_anomaly  = score > self._threshold
-            # If MAD ≈ 0 (near-constant window): no anomaly declared
-            # A perfectly constant signal cannot be flagged via deviation
 
         self._buffer.push(value)
 

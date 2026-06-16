@@ -13,17 +13,13 @@ Phase 3 adds:
 import importlib.util
 import os
 
-import _phase2_bridge as _bridge   # ensures Phase 2 is on sys.path
+import _phase2_bridge as _bridge
 
-# ---- Inherit Phase 2 config ------------------------------------------------
-# Load Phase 2's config.py explicitly so it doesn't shadow Phase 3's own
-# `import config` from elsewhere on the path.
 _PHASE2_CONFIG_PATH = os.path.join(_bridge.PHASE2_ROOT, "config.py")
 _spec = importlib.util.spec_from_file_location("phase2_config", _PHASE2_CONFIG_PATH)
 _p2 = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_p2)
 
-# Re-export Phase 2 values (verbatim — same hyperparameters, same dimensions)
 DATA_DIR             = _p2.DATA_DIR
 PRIMARY_SIGNAL       = _p2.PRIMARY_SIGNAL
 EXTRA_SIGNALS        = _p2.EXTRA_SIGNALS
@@ -40,24 +36,14 @@ DETECTION_WINDOW     = _p2.DETECTION_WINDOW
 PLOT_DPI             = _p2.PLOT_DPI
 PLOT_FORMAT          = _p2.PLOT_FORMAT
 
-# ---- Phase 3 overrides ------------------------------------------------------
 BASE_DIR        = os.path.dirname(os.path.abspath(__file__))
 RESULTS_CSV_DIR = os.path.join(BASE_DIR, "results", "csv")
 RESULTS_PLT_DIR = os.path.join(BASE_DIR, "results", "plots")
 
-ITERATION = 3   # used by visualisation module to label outputs
+ITERATION = 3
 
-# Cap each loaded series to this many samples before injection. None = no cap.
-# CESNET 10-min series can be ~40,000 samples — cropping cuts smoke-run time
-# without changing per-trial detection semantics (the injector picks a position
-# in the middle 50% of whatever range it gets).
 MAX_SAMPLES_PER_SERIES = None
 
-# ---- Ensemble composition --------------------------------------------------
-#   spike_layer.members      — base detector keys for the spike pipeline
-#   sustained_layer.members  — base detector keys for the sustained-change pipeline
-#   *_voting_mode            — "AND" (high precision) or "OR" (high recall)
-#   confirmation_n           — gate fires only after this many consecutive child alarms
 ENSEMBLE = {
     "confirmation_n": 2,
     "spike_layer": {
@@ -68,7 +54,7 @@ ENSEMBLE = {
         "members":     ["ewma", "cusum"],
         "voting_mode": "OR",
     },
-    "include_individual_baselines": True,   # re-benchmark each Phase 2 detector
-    "include_gated_baselines":      True,   # also benchmark gated variants
-    "include_or_variant":           True,   # include Spike_OR ablation
+    "include_individual_baselines": True,
+    "include_gated_baselines":      True,
+    "include_or_variant":           True,
 }

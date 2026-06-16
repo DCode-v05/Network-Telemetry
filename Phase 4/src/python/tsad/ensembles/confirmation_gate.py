@@ -25,9 +25,9 @@ class ConfirmationGate(Detector):
 
     def reset(self):
         super().reset()
-        import tsad.registry as registry          # lazy import avoids a cycle
+        import tsad.registry as registry
         self.child = registry.make(self.child_name, window=self.window)
-        self.threshold = self.child.threshold      # alarm at the child's own scale
+        self.threshold = self.child.threshold
         self.run = 0
 
     def update(self, x):
@@ -44,4 +44,4 @@ class ConfirmationGate(Detector):
         return score
 
     def state_bytes(self):
-        return self.child.state_bytes() + 8        # + run counter
+        return self.child.state_bytes() + 8

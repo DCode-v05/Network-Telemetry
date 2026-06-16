@@ -92,7 +92,7 @@ def load_nab(nab_dir=NAB_DIR):
         meta = dict(source="nab", anomaly_type="real", base=family,
                     name=rel, n=n, seed=0, mag="real",
                     anomaly_ratio=float(labels.mean()))
-        if labels.sum() > 0:    # need at least one labelled anomaly to score against
+        if labels.sum() > 0:
             streams.append(Stream(values, labels, events, meta))
     return streams
 

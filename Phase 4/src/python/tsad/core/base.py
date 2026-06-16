@@ -29,23 +29,19 @@ class Detector:
                  warmup: int | None = None, **params):
         self.window = int(window)
         self.threshold = float(threshold)
-        # Default warm-up: enough samples to form a stable estimate, but never the
-        # whole window (we still want detection within a short observation window).
         self.warmup = int(warmup) if warmup is not None else max(3, self.window // 3)
         self.params = dict(params)
         self.reset()
 
-    # ------------------------------------------------------------------ lifecycle
     def reset(self) -> None:
         """Reset all streaming state. Subclasses override and MUST call super().reset()."""
-        self.n = 0            # samples seen so far
+        self.n = 0
         self.last_score = 0.0
 
     def update(self, x: float) -> float:
         """Process one sample; return a continuous anomaly score (>= 0)."""
         raise NotImplementedError
 
-    # ------------------------------------------------------------------ convenience
     def flag(self, x: float) -> int:
         """Update with ``x`` and return the binary decision at the current threshold."""
         return 1 if self.update(x) >= self.threshold else 0
@@ -63,7 +59,6 @@ class Detector:
         """True once the detector has passed warm-up and is allowed to alert."""
         return self.n > self.warmup
 
-    # ------------------------------------------------------------- cost accounting
     def state_floats(self) -> int:
         """Count of float32 scalars held in steady state (EXCLUDING any ring buffer)."""
         return 0
@@ -78,4 +73,4 @@ class Detector:
         The authoritative number is the C ``sizeof(struct)`` measured in WF-C; this is
         the Python-side estimate used for an early budget sanity check.
         """
-        return self.state_floats() * 4 + self.state_buffer_len() * 4 + 8  # +8: n + flags
+        return self.state_floats() * 4 + self.state_buffer_len() * 4 + 8

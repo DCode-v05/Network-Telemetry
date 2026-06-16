@@ -6,11 +6,8 @@ import pytest
 import tsad.registry as registry
 
 WINDOW = 20
-# detectors that elevate SHARPLY on an additive spike on a flat signal
 SHARP_SPIKE = {"ewma_z", "robust_z", "hampel", "deriv",
                "heavy_baseline", "layered", "voting", "cascade"}
-# EWMA control-chart smooths the signal: it elevates on a spike but only gently
-# (by design it trades spike sensitivity for small-sustained-shift sensitivity).
 SMOOTH_SPIKE = {"ewmv_adaptive"}
 
 
@@ -31,7 +28,6 @@ def test_contract(name):
         assert np.isfinite(s) and s >= 0.0, f"{name}: bad score {s} at i={i}"
         scores.append(s)
 
-    # warm-up: samples with n <= warmup (i.e. i < warmup) must return exactly 0.0
     for i in range(min(d.warmup, len(scores))):
         assert scores[i] == 0.0, f"{name}: nonzero score {scores[i]} during warm-up i={i}"
 

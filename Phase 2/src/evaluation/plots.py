@@ -1,7 +1,5 @@
-# src/evaluation/plots.py
 import os
 
-# matplotlib backend MUST be set before any other matplotlib import
 import matplotlib
 matplotlib.use("Agg")
 

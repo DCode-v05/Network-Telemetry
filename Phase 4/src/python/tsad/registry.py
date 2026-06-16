@@ -17,9 +17,7 @@ from __future__ import annotations
 
 import importlib
 
-# name -> (module, class, family, targets, default_params)
 SPECS = {
-    # ---- single detectors ----
     "ewma_z":          ("tsad.detectors.ewma_z",          "EwmaZ",
                         "statistical", ("spike", "drift", "transient"), {}),
     "robust_z":        ("tsad.detectors.robust_z",        "RobustZ",
@@ -38,14 +36,12 @@ SPECS = {
                         "spectral",    ("periodicity",), {}),
     "heavy_baseline":  ("tsad.detectors.heavy_baseline",  "HeavyBaseline",
                         "baseline_heavy", ("spike", "drift"), {}),
-    # ---- combined / layered ----
     "layered":         ("tsad.ensembles.layered",         "Layered",
                         "ensemble", ("spike", "drift", "transient"), {}),
     "voting":          ("tsad.ensembles.voting",          "Voting",
                         "ensemble", ("spike", "drift", "transient", "periodicity"), {}),
     "cascade":         ("tsad.ensembles.cascade",         "Cascade",
                         "ensemble", ("spike", "drift", "transient"), {}),
-    # ---- improved variants (Item 1-3 F1 study): anomaly-aware baseline + confirmation gate
     "ewma_z_hold":     ("tsad.detectors.ewma_z_hold",     "EwmaZHold",
                         "statistical", ("spike", "drift"), {}),
     "ewmv_hold":       ("tsad.detectors.ewmv_hold",       "EwmvHold",
@@ -60,7 +56,6 @@ SPECS = {
                         "statistical", ("drift",), {"child": "ewmv_hold", "confirm": 3}),
     "acf_gated":       ("tsad.ensembles.confirmation_gate", "ConfirmationGate",
                         "spectral", ("periodicity",), {"child": "acf_periodicity", "confirm": 3}),
-    # ---- unified all-in-one detector (one 96-byte unit covering all four types) ----
     "unified":         ("tsad.ensembles.unified", "Unified",
                         "ensemble", ("spike", "drift", "periodicity", "transient"), {}),
 }

@@ -1,11 +1,3 @@
-# dashboard/export_data.py
-#
-# Exports the Phase 2 evaluation CSVs into a single JSON snapshot consumed by the
-# React (Vite + ECharts) dashboard in `dashboard/web/`.
-#
-# Run standalone:   python dashboard/export_data.py
-# The React app imports the emitted file directly, so `npm run build` bakes the
-# data into the static bundle (no server required to view the result).
 
 import json
 import os
@@ -14,14 +6,12 @@ from datetime import datetime
 
 import pandas as pd
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
 BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 AGG_CSV     = os.path.join(BASE_DIR, "results", "csv", "aggregated_results.csv")
 RAW_CSV     = os.path.join(BASE_DIR, "results", "csv", "raw_trial_results.csv")
 OUTPUT_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "web", "src", "data.json")
 
-# ── Config (mirrors generate_report.py) ───────────────────────────────────────
 ANOMALY_TYPES = ["burst", "rate_shift", "gradual_drift", "transient"]
 WINDOW_SIZES  = [10, 20, 30, 50]
 DET_ORDER     = ["ZScore", "MAD", "EWMA", "CUSUM", "PageHinkley", "SlidingWindow"]
@@ -35,7 +25,6 @@ DET_COLORS = {
     "SlidingWindow": "#888780",
 }
 
-# Human-friendly metadata used by the UI ---------------------------------------
 DET_LABELS = {
     "ZScore":        "Z-Score",
     "MAD":           "MAD",
@@ -126,7 +115,6 @@ def build_winners(df: pd.DataFrame) -> dict:
 
 def build_kpis(df: pd.DataFrame) -> dict:
     best_row = df.loc[df["f1_mean"].idxmax()]
-    # Most reliable = highest detection_rate averaged across grid
     det_rate = (df.groupby("detector_short")["detection_rate"].mean())
     cleanest = (df.groupby("detector_short")["fpr_mean"].mean())
     return {

@@ -28,9 +28,9 @@ from __future__ import annotations
 from tsad.core.base import Detector
 from tsad.core.ring_buffer import RingBuffer
 from tsad.core.stats import median_sorted, mad
-from math import sqrt  # noqa: F401  (kept for parity with the C twin's includes)
+from math import sqrt
 
-MAD_TO_SIGMA = 1.4826  # rescale raw MAD to a Gaussian-sigma estimate
+MAD_TO_SIGMA = 1.4826
 _EPS = 1e-9
 
 
@@ -40,39 +40,32 @@ class RobustZ(Detector):
     name = "robust_z"
 
     def __init__(self, window: int = 30, threshold: float = 3.5, **params):
-        # Override only to supply the sensible default threshold (3.5 robust sigmas);
-        # everything else defers to the base contract (warmup, reset()).
         super().__init__(window=window, threshold=threshold, **params)
 
-    # ------------------------------------------------------------------ lifecycle
     def reset(self) -> None:
-        super().reset()                       # sets self.n = 0, self.last_score = 0.0
-        self.buf = RingBuffer(self.window)    # one fixed-capacity window buffer
+        super().reset()
+        self.buf = RingBuffer(self.window)
 
     def update(self, x: float) -> float:
         self.n += 1
 
-        # Need at least 3 points for a meaningful median/MAD; otherwise no judgment.
         if len(self.buf) >= 3:
-            sv = self.buf.sorted_values()           # O(window log window)
+            sv = self.buf.sorted_values()
             med = median_sorted(sv)
-            m = mad(self.buf.values(), med)         # raw MAD about the median
-            sd = MAD_TO_SIGMA * m                    # robust sigma estimate
+            m = mad(self.buf.values(), med)
+            sd = MAD_TO_SIGMA * m
             score = abs(x - med) / (sd + _EPS)
         else:
             score = 0.0
 
-        # Predict-then-update: judge x against the window BEFORE it joins the baseline.
         self.buf.push(x)
 
-        if not self.warm():                          # self.n <= self.warmup
+        if not self.warm():
             score = 0.0
         self.last_score = score
         return score
 
-    # ------------------------------------------------------------- cost accounting
     def state_floats(self) -> int:
-        # No standalone float scalars -- all numeric state lives in the ring buffer.
         return 0
 
     def state_buffer_len(self) -> int:

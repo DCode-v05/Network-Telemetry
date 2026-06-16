@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 
-// Reveal-on-scroll wrapper (IntersectionObserver) with staggered delay.
 export function Reveal({ children, delay = 0, className = "", as: Tag = "div", ...rest }) {
   const ref = useRef(null);
   const [shown, setShown] = useState(false);
@@ -31,7 +30,6 @@ export function Reveal({ children, delay = 0, className = "", as: Tag = "div", .
   );
 }
 
-// Count-up number animation, triggered when scrolled into view.
 export function CountUp({ value, decimals = 0, duration = 1100, suffix = "", prefix = "" }) {
   const ref = useRef(null);
   const [val, setVal] = useState(0);
@@ -64,7 +62,6 @@ export function CountUp({ value, decimals = 0, duration = 1100, suffix = "", pre
   );
 }
 
-// Segmented control
 export function Segmented({ options, value, onChange, variant = "" }) {
   return (
     <div className={`seg ${variant}`} role="tablist">

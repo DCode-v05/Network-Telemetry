@@ -48,12 +48,9 @@ def test_reset_clears_streak():
     """After reset, a single fresh alarm must not fire."""
     child = MockDetector([True, True, True], name="MAD")
     gate  = ConfirmationGate(child, n_consecutive=2)
-    # Build streak, fire
     assert _alarms_from_run(gate, 2) == [False, True]
     gate.reset()
-    # Reset child too: re-arm the script
     child.reset()
-    # First alarm after reset must not fire alone
     child2 = MockDetector([True], name="MAD")
     gate2  = ConfirmationGate(child2, n_consecutive=2)
     assert gate2.update(0.0).is_anomaly is False

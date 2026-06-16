@@ -69,7 +69,6 @@ def parse_args():
 def main():
     args = parse_args()
 
-    # Ensure Phase 3 root is on sys.path so `import config` resolves to ours
     PHASE3_ROOT = os.path.dirname(os.path.abspath(__file__))
     if PHASE3_ROOT not in sys.path:
         sys.path.insert(0, PHASE3_ROOT)
@@ -99,7 +98,6 @@ def main():
             sys.exit(1)
         cfg.ENSEMBLE["confirmation_n"] = args.confirmation_n
 
-    # Auto-resolve compare path
     if args.compare_phase2_csv is None:
         default_p2 = os.path.normpath(os.path.join(
             PHASE3_ROOT, "..", "Phase 2", "results", "csv", "aggregated_results.csv"
@@ -136,7 +134,7 @@ def main():
 
     if not args.no_plot:
         try:
-            from _phase2_bridge import PHASE2_ROOT  # noqa: F401  (forces bridge init)
+            from _phase2_bridge import PHASE2_ROOT
             from src.evaluation.visualise import Visualiser
             v = Visualiser(
                 results_csv_dir = cfg.RESULTS_CSV_DIR,
@@ -149,7 +147,7 @@ def main():
 
     if not args.no_dashboard:
         try:
-            import plotly  # noqa: F401
+            import plotly
             from dashboard.generate_report import generate
             generate(compare_phase2_csv=args.compare_phase2_csv)
             logger.info(f"Dashboard -> {os.path.join(PHASE3_ROOT, 'results', 'dashboard.html')}")
@@ -158,7 +156,6 @@ def main():
         except Exception as e:
             logger.warning(f"Dashboard generation failed: {e}.")
 
-        # Refresh the React (Vite + ECharts) dashboard's data snapshot.
         try:
             from dashboard.export_data import main as export_react_data
             export_react_data()

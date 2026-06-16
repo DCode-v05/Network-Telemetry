@@ -43,7 +43,7 @@ def test_parity(name):
     rng = np.random.default_rng(3)
     vals = 50.0 + rng.normal(0, 1.0, size=200)
     vals[60] += 18.0
-    vals[120:140] += 6.0  # a sustained shift to exercise change-point detectors
+    vals[120:140] += 6.0
     d = registry.make(name, window=20)
     py = [d.update(float(x)) for x in vals]
 

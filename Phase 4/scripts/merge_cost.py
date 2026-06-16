@@ -62,7 +62,6 @@ def main():
         for r in cost:
             w.writerow({k: r.get(k, "") for k in out_cols})
 
-    # refresh metrics.json cost block (numeric, NaN -> None)
     mj = os.path.join(RESULTS, "metrics.json")
     if os.path.exists(mj):
         with open(mj) as f:

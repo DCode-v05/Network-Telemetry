@@ -32,7 +32,7 @@ from tsad.core.ring_buffer import RingBuffer
 from tsad.core.stats import median_sorted, mad
 
 _EPS = 1e-9
-_MAD_TO_SIGMA = 1.4826  # MAD * k estimates Gaussian sigma
+_MAD_TO_SIGMA = 1.4826
 
 
 class HeavyBaseline(Detector):
@@ -43,19 +43,17 @@ class HeavyBaseline(Detector):
     def __init__(self, window: int = 30, threshold: float = 3.0, **params):
         super().__init__(window=window, threshold=threshold, **params)
 
-    # ------------------------------------------------------------------ lifecycle
     def reset(self) -> None:
-        super().reset()                       # sets self.n = 0, self.last_score = 0.0
+        super().reset()
         self.buf = RingBuffer(self.window)
 
     def update(self, x: float) -> float:
         self.n += 1
 
-        vals = self.buf.values()              # values BEFORE pushing x (predict-then-update)
+        vals = self.buf.values()
         N = len(vals)
 
         if N >= 4:
-            # Least-squares line y = a + b*t over t = 0 .. N-1 (closed form).
             st = N * (N - 1) / 2.0
             stt = sum(t * t for t in range(N))
             sy = sum(vals)
@@ -65,12 +63,10 @@ class HeavyBaseline(Detector):
             a = (sy - b * st) / N
             pred = a + b * N
 
-            # Plain standard deviation over the window.
             mean = sy / N
             var = sum((v - mean) ** 2 for v in vals) / N
             std = sqrt(var)
 
-            # Robust scale via MAD (extra full sort -- intentionally heavy).
             sv = sorted(vals)
             med = median_sorted(sv)
             m = mad(vals, med)
@@ -88,7 +84,6 @@ class HeavyBaseline(Detector):
         self.last_score = score
         return score
 
-    # ------------------------------------------------------------- cost accounting
     def state_floats(self) -> int:
         return 0
 

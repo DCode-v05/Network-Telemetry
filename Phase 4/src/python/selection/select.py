@@ -36,7 +36,6 @@ def main():
 
     cards = build_scorecards(agg_dw, cost_index)
 
-    # best window per detector (by intelligence), for a clean per-detector summary
     best_card = {}
     for c in cards:
         d = c["detector"]
@@ -44,18 +43,15 @@ def main():
             best_card[d] = c
     per_detector = sorted(best_card.values(), key=lambda c: c["intel"], reverse=True)
 
-    # Pareto frontier over (cost us, intelligence) using each detector's best-intel window
     pareto_pts = [{"detector": c["detector"], "window": c["window"],
                    "us": c["us_per_sample"], "intel": c["intel"],
                    "budget_ok": c["budget_ok"]}
                   for c in per_detector if c["us_per_sample"] is not None]
     front = pareto_front(pareto_pts, "us", "intel", minimize_x=True, maximize_y=True)
 
-    # condition -> algorithm map
     cond_map = best_per_type(agg_dwt, cost_index, passes_budget)
     cond_map_single = best_per_type(agg_dwt, cost_index, passes_budget, prefer_single=True)
 
-    # recommendations (must pass budget)
     gated = [c for c in per_detector if c["budget_ok"]]
     pool = gated if gated else per_detector
     singles = [c for c in pool if registry.family(c["detector"]) != "ensemble"]
@@ -83,7 +79,6 @@ def main():
     with open(os.path.join(RESULTS, "selection.json"), "w") as f:
         json.dump(jsonsafe(out), f, indent=2, default=lambda o: None)
 
-    # console summary
     print("=== Recommended configurations (budget-gated) ===")
     for label, c in [("OVERALL", overall), ("BEST SINGLE", best_single),
                      ("BEST COMBINED", best_combined)]:

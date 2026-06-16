@@ -1,4 +1,3 @@
-# src/pipeline/loader.py
 import os
 import glob
 import numpy as np
@@ -8,8 +7,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Columns present in ip_addresses_sample (re-aggregated format).
-# n_dest_ip / n_dest_asn / n_dest_port are expanded into sum/average/std.
 CESNET_COLUMNS = [
     "id_time",
     "n_flows",
@@ -32,10 +29,8 @@ CESNET_COLUMNS = [
     "avg_ttl",
 ]
 
-# Columns that confirm a file is already in CESNET format (header present)
 CESNET_MARKER_COLS = {"n_bytes", "n_packets", "n_flows"}
 
-# Minimum samples a series must have to be used
 MIN_SERIES_LENGTH = 200
 
 
@@ -123,7 +118,6 @@ def _read_cesnet_csv(fpath: str) -> pd.DataFrame:
         try:
             df = pd.read_csv(fpath, encoding=enc)
 
-            # If column count matches but no CESNET marker cols found → no header
             if (df.shape[1] == len(CESNET_COLUMNS)
                     and not CESNET_MARKER_COLS.intersection(df.columns)):
                 df = pd.read_csv(
@@ -136,7 +130,6 @@ def _read_cesnet_csv(fpath: str) -> pd.DataFrame:
         except Exception:
             continue
 
-    # Absolute last resort
     return pd.read_csv(fpath, encoding="utf-8", errors="ignore")
 
 

@@ -253,14 +253,14 @@ export default function App() {
         <div className="grid-2" style={{ marginTop: "clamp(2.5rem,6vw,4.5rem)" }}>
           <section className="section" id="latency" style={{ marginTop: 0 }}>
             <Reveal className="section-head">
-              <div className="num">// 08 — Speed</div><h2>Detection latency</h2>
+              <div className="num">
               <p>Samples between anomaly onset and first alarm, for trials that detected.</p>
             </Reveal>
             <Reveal delay={80}><div className="panel"><LatencyBars rows={data.aggregated} meta={meta} dets={dets} /></div></Reveal>
           </section>
           <section className="section" style={{ marginTop: 0 }}>
             <Reveal className="section-head">
-              <div className="num">// 08 — Profile</div><h2>Capability radar</h2>
+              <div className="num">
               <p>Normalised 0–1 across F1, TPR, Precision, Detection Rate, Low-FPR. Filter by detector group.</p>
             </Reveal>
             <Reveal delay={80}><div className="panel"><RadarProfile rows={data.aggregated} meta={meta} dets={dets} /></div></Reveal>

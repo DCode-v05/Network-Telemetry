@@ -1,4 +1,3 @@
-// Pure helpers that shape the exported aggregated rows into chart-ready data.
 
 export function detectorsPresent(rows, order) {
   const set = new Set(rows.map((r) => r.detector));
@@ -7,7 +6,6 @@ export function detectorsPresent(rows, order) {
 
 export const atWindow = (rows, w) => rows.filter((r) => r.window_size === w);
 
-// Heatmap matrix as ECharts [colIdx, rowIdx, value] triples.
 export function heatmap(rows, metric, w, dets, anomalies) {
   const sub = atWindow(rows, w);
   const data = [];

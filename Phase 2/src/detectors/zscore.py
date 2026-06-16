@@ -1,8 +1,3 @@
-# src/detectors/zscore.py
-# Person 3 owns this file.
-#
-# Z-Score anomaly detector using Welford's online algorithm for O(1) updates.
-# Uses WindowBuffer to maintain a rolling reference window.
 
 from src.detectors.base import DetectorBase, DetectionResult
 from src.pipeline.window_buffer import WindowBuffer
@@ -54,7 +49,6 @@ class ZScoreDetector(DetectorBase):
                 score       = abs(z)
                 alarm_value = z
                 is_anomaly  = score > self._threshold
-            # If sigma ≈ 0 (constant window), no alarm — value is as flat as baseline
 
         self._buffer.push(value)
 

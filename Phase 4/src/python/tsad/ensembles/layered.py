@@ -28,7 +28,7 @@ class Layered(Detector):
         self.n += 1
         s1 = self.ewma.update(x) / (self.ewma.threshold + 1e-9)
         s2 = self.cusum.update(x) / (self.cusum.threshold + 1e-9)
-        score = s1 if s1 >= s2 else s2          # OR-fusion of normalized scores
+        score = s1 if s1 >= s2 else s2
         if not self.warm():
             score = 0.0
         self.last_score = score

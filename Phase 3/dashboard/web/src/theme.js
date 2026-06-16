@@ -1,4 +1,3 @@
-// Shared visual constants + ECharts base options for the Ensemble Command theme.
 
 export const C = {
   ink: "#0b0906",

@@ -14,9 +14,6 @@ from collections import defaultdict
 from typing import Any, Dict, List, Tuple
 
 
-# ---------------------------------------------------------------------------
-# Loaders
-# ---------------------------------------------------------------------------
 def load_aggregated_csv(path: str) -> List[Dict[str, Any]]:
     """Load aggregated_results.csv with numeric columns coerced to float/int."""
     rows = []
@@ -65,9 +62,6 @@ def load_raw_csv(path: str) -> List[Dict[str, Any]]:
     return rows
 
 
-# ---------------------------------------------------------------------------
-# 1. Per-anomaly winner
-# ---------------------------------------------------------------------------
 def per_anomaly_winner(rows: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     """For each anomaly_type, return the row with the highest f1_mean across all
     detectors and window sizes. Useful for the headline "best individual" table.
@@ -80,9 +74,6 @@ def per_anomaly_winner(rows: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     return best
 
 
-# ---------------------------------------------------------------------------
-# 2. Ensemble vs best single
-# ---------------------------------------------------------------------------
 def _is_ensemble_name(name: str) -> bool:
     """Detector names produced by Phase 3 ensemble layer."""
     return name.startswith(("Spike_", "Sustained_", "TwoLayerEnsemble"))
@@ -147,9 +138,6 @@ def ensemble_vs_best_single(
     return deltas
 
 
-# ---------------------------------------------------------------------------
-# 3. Confirmation gate FP reduction
-# ---------------------------------------------------------------------------
 _GATED_TO_BASE = {
     "GatedMAD":     "MAD",
     "GatedZScore":  "ZScore",

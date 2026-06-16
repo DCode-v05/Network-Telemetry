@@ -14,8 +14,6 @@ import numpy as np
 
 from .injectors import INJECTORS, ANOMALY_TYPES
 
-# Base signal kinds compatible with each anomaly type. Periodicity loss needs a
-# genuinely periodic base; the other anomaly types use the broader set.
 BASE_KINDS = ("flat", "periodic", "trend", "bursty")
 PERIODIC_BASES = ("periodic",)
 
@@ -24,7 +22,7 @@ PERIODIC_BASES = ("periodic",)
 class Stream:
     values: np.ndarray
     labels: np.ndarray
-    events: list                      # list[(start, end)] inclusive
+    events: list
     meta: dict = field(default_factory=dict)
 
     @property
@@ -46,7 +44,6 @@ def base_signal(kind, n, sigma, rng, period=24, amp=6.0, slope=None):
             slope = amp / n
         base = 40.0 + slope * t + 0.3 * amp * np.sin(2.0 * np.pi * t / period)
     elif kind == "bursty":
-        # piecewise-constant levels with occasional legitimate level changes (NOT anomalies)
         base = np.full(n, 45.0)
         level = 45.0
         for i in range(n):
@@ -98,9 +95,9 @@ def make_suite(seeds=range(10), mags=(4.0, 6.0, 9.0), n=600, spike_mags=(6.0, 8.
     for atype in ANOMALY_TYPES:
         bases = PERIODIC_BASES if atype == "periodicity" else BASE_KINDS
         if atype == "periodicity":
-            mag_grid = (0.0,)            # periodicity ignores magnitude
+            mag_grid = (0.0,)
         elif atype == "spike":
-            mag_grid = spike_mags        # spikes are >= 6 sigma by definition (see above)
+            mag_grid = spike_mags
         else:
             mag_grid = mags
         for base in bases:
@@ -110,7 +107,7 @@ def make_suite(seeds=range(10), mags=(4.0, 6.0, 9.0), n=600, spike_mags=(6.0, 8.
     return streams
 
 
-if __name__ == "__main__":  # tiny smoke test
+if __name__ == "__main__":
     suite = make_suite(seeds=range(2))
     print(f"generated {len(suite)} synthetic streams")
     for s in suite[:4]:

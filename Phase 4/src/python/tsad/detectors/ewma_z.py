@@ -25,8 +25,8 @@ from __future__ import annotations
 from math import sqrt
 
 from tsad.core.base import Detector
-from tsad.core.ring_buffer import RingBuffer  # noqa: F401  (kept for contract parity)
-from tsad.core.stats import median_sorted, mad  # noqa: F401  (kept for contract parity)
+from tsad.core.ring_buffer import RingBuffer
+from tsad.core.stats import median_sorted, mad
 
 EPS = 1e-9
 
@@ -39,41 +39,33 @@ class EwmaZ(Detector):
     def __init__(self, window: int = 30, threshold: float = 3.0, **params):
         super().__init__(window=window, threshold=threshold, **params)
 
-    # ------------------------------------------------------------------ lifecycle
     def reset(self) -> None:
-        super().reset()                       # sets self.n = 0, self.last_score = 0.0
-        # Smoothing factor from the EWMA span -> alpha convention.
+        super().reset()
         self.alpha = 2.0 / (self.window + 1.0)
-        self.mu = 0.0                          # EWMA mean
-        self.var = 1.0                         # EWMA variance (seeded to 1.0)
+        self.mu = 0.0
+        self.var = 1.0
 
-    # ------------------------------------------------------------------ streaming
     def update(self, x: float) -> float:
         self.n += 1
 
-        # First sample: initialize the baseline; nothing to score against yet.
         if self.n == 1:
             self.mu = x
             self.var = 1.0
             self.last_score = 0.0
             return 0.0
 
-        # Score against the PRE-update baseline (predict-then-update).
         sd = sqrt(self.var)
         z = abs(x - self.mu) / (sd + EPS)
 
-        # Fold x into the EWMA mean and EWMA variance.
         diff = x - self.mu
         self.mu += self.alpha * diff
         self.var = (1.0 - self.alpha) * (self.var + self.alpha * diff * diff)
 
         score = z
-        if not self.warm():                    # self.n <= self.warmup
+        if not self.warm():
             score = 0.0
         self.last_score = score
         return score
 
-    # ------------------------------------------------------------- cost accounting
     def state_floats(self) -> int:
-        # mu, var (alpha is a fixed config constant derived from window, not state).
         return 2

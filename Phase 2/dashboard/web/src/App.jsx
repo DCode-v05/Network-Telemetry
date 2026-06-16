@@ -202,7 +202,7 @@ export default function App() {
         <div className="grid-2" style={{ marginTop: "clamp(2.5rem,6vw,4.5rem)" }}>
           <section className="section" id="latency" style={{ marginTop: 0 }}>
             <Reveal className="section-head">
-              <div className="num">// 05 — Speed</div>
+              <div className="num">
               <h2>Detection latency</h2>
               <p>Samples elapsed between anomaly onset and first alarm, for trials that detected.</p>
             </Reveal>
@@ -210,7 +210,7 @@ export default function App() {
           </section>
           <section className="section" id="radar" style={{ marginTop: 0 }}>
             <Reveal className="section-head">
-              <div className="num">// 06 — Profile</div>
+              <div className="num">
               <h2>Capability radar</h2>
               <p>Normalised 0–1 across F1, TPR, Precision, Detection Rate and Low-FPR. Bigger area = stronger all-rounder.</p>
             </Reveal>

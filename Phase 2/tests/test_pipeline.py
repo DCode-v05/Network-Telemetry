@@ -1,6 +1,3 @@
-# tests/test_pipeline.py
-# Tests for WindowBuffer and the loader interface.
-# Run: pytest tests/test_pipeline.py -v
 
 import pytest
 import numpy as np
@@ -33,11 +30,9 @@ class TestWindowBuffer:
         assert abs(buf.mean() - 2.5) < 1e-9
 
     def test_mean_after_eviction(self):
-        # Push 5 values into capacity-4 buffer; oldest should be evicted
         buf = WindowBuffer(capacity=4)
         for v in [1.0, 2.0, 3.0, 4.0, 5.0]:
             buf.push(v)
-        # Window should now contain [2, 3, 4, 5]
         assert abs(buf.mean() - 3.5) < 1e-9
 
     def test_variance_single_value(self):
@@ -49,7 +44,6 @@ class TestWindowBuffer:
         buf = WindowBuffer(capacity=4)
         for v in [2.0, 4.0, 4.0, 4.0]:
             buf.push(v)
-        # Sample variance = ((2-3.5)^2 + (4-3.5)^2*3) / 3 — use numpy as reference
         expected = float(np.var([2.0, 4.0, 4.0, 4.0], ddof=1))
         assert abs(buf.variance(ddof=1) - expected) < 1e-9
 
@@ -70,7 +64,6 @@ class TestWindowBuffer:
         for v in [1.0, 2.0, 3.0, 4.0, 5.0]:
             buf.push(v)
         arr = buf.to_array()
-        # Should contain [3, 4, 5] — oldest first
         np.testing.assert_array_almost_equal(arr, [3.0, 4.0, 5.0])
 
     def test_min_max(self):
@@ -89,7 +82,6 @@ class TestWindowBuffer:
         assert buf.mean() == 0.0
 
     def test_welford_numerical_stability(self):
-        # Large values — check that Welford doesn't accumulate float error
         buf = WindowBuffer(capacity=10)
         vals = [1e8 + i * 0.1 for i in range(10)]
         for v in vals:

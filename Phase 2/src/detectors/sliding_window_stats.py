@@ -1,4 +1,3 @@
-# src/detectors/sliding_window_stats.py
 import numpy as np
 from src.detectors.base import DetectorBase, DetectionResult
 from src.pipeline.window_buffer import WindowBuffer

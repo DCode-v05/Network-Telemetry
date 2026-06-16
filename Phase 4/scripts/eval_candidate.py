@@ -24,8 +24,8 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "src", "python"))
 
-from datasets.synthetic import make_suite          # noqa: E402
-from eval.metrics_intel import evaluate             # noqa: E402
+from datasets.synthetic import make_suite
+from eval.metrics_intel import evaluate
 
 TYPES = ["spike", "drift", "periodicity", "transient"]
 
@@ -83,7 +83,6 @@ def main():
     cls = getattr(mod, args.cls)
     res = evaluate_class(cls, windows, args.seeds, seed_start=args.seed_start)
 
-    # pick the best window: maximise min_event_f1 among within-budget windows
     budget_windows = {w: r for w, r in res.items() if r["within_budget"]}
     pool = budget_windows or res
     best_w = max(pool, key=lambda w: pool[w]["min_event_f1_opt"])

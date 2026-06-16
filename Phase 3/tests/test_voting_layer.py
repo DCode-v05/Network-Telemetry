@@ -46,13 +46,10 @@ def test_reset_propagates_to_all_children():
     a = MockDetector([True, True], name="A")
     b = MockDetector([True, True], name="B")
     layer = VotingLayer([a, b], mode="AND")
-    # Consume both scripts
     layer.update(0.0)
     layer.update(0.0)
-    # Without reset, scripts are exhausted → both default False → AND→False
     assert layer.update(0.0).is_anomaly is False
     layer.reset()
-    # After reset both children reset their idx → script replays → AND→True
     assert layer.update(0.0).is_anomaly is True
 
 

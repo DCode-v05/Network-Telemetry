@@ -6,7 +6,7 @@ median / MAD logic is written and tested once.
 
 from __future__ import annotations
 
-MAD_TO_SIGMA = 1.4826  # consistency factor: MAD * k estimates Gaussian sigma
+MAD_TO_SIGMA = 1.4826
 
 
 def median_sorted(sorted_vals: list[float]) -> float:

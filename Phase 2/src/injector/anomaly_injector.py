@@ -1,13 +1,3 @@
-# src/injector/anomaly_injector.py
-# Person 2 owns this file.
-#
-# Injects controlled anomalies into clean CESNET baseline segments.
-# This is why we can measure ground truth TPR/FPR — the injected position
-# is known exactly.
-#
-# Design: each function takes a clean numpy array and injection parameters,
-# returns a new array with the anomaly injected + a binary label array
-# (0 = normal, 1 = anomalous sample).
 
 import numpy as np
 from typing import Tuple
@@ -49,7 +39,6 @@ class AnomalyInjector:
     def __init__(self, random_seed: int = 42):
         self._rng = np.random.default_rng(random_seed)
 
-    # ── Public injection methods ──────────────────────────────────────────────
 
     def inject_burst(
         self,
@@ -205,7 +194,6 @@ class AnomalyInjector:
             )
         return dispatch[anomaly_type](signal, **params)
 
-    # ── Private helpers ───────────────────────────────────────────────────────
 
     def _prepare(
         self,
@@ -227,7 +215,6 @@ class AnomalyInjector:
             )
 
         if position is None:
-            # Inject somewhere in the middle 50% of the series
             lo    = n // 4
             hi    = 3 * n // 4 - duration
             if lo >= hi:

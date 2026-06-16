@@ -33,13 +33,13 @@ _EPS = 1e-9
 class Unified(Detector):
     name = "unified"
 
-    BUF_LEN = 17          # spans enough of the dominant period for the ACF-drop head
-    GATE = 0.45           # min peak ACF to ARM the periodicity head (rejects aperiodic bases)
-    TH_DRV = 2.8          # derivative alarm scale (spike / transient)
-    TH_EWMV = 2.5         # drift control-chart alarm scale
-    DR_CAP = 0.9          # cap on the drift head's normalised output (anti-pollution)
-    TH_PER = 0.4          # ACF-drop alarm scale
-    HOLD = 2.5            # derivative-baseline freeze threshold (anomaly-aware)
+    BUF_LEN = 17
+    GATE = 0.45
+    TH_DRV = 2.8
+    TH_EWMV = 2.5
+    DR_CAP = 0.9
+    TH_PER = 0.4
+    HOLD = 2.5
 
     def __init__(self, window: int = 24, threshold: float = 1.0, **params):
         super().__init__(window=window, threshold=threshold, **params)
@@ -47,13 +47,13 @@ class Unified(Detector):
     def reset(self) -> None:
         super().reset()
         self.buf = RingBuffer(self.BUF_LEN)
-        self.period = 0            # int: dominant lag (0 == not yet established)
-        self.r_ref = 0.0           # reference ACF at that lag
-        self.armed = 0             # 1 once a genuine periodicity is locked
-        self.mu_d = 0.0            # derivative baseline mean (anomaly-aware HOLD)
-        self.var_d = 1.0           # derivative baseline variance (anomaly-aware HOLD)
-        self.z = 0.0               # drift fast smoother
-        self.mu = 0.0              # drift slow HELD mean
+        self.period = 0
+        self.r_ref = 0.0
+        self.armed = 0
+        self.mu_d = 0.0
+        self.var_d = 1.0
+        self.z = 0.0
+        self.mu = 0.0
         self.alpha = 2.0 / (self.window + 1)
         self.lam = 2.0 / (self.window + 1)
         self.alpha_s = self.lam / 4.0
@@ -81,7 +81,6 @@ class Unified(Detector):
             self.last_score = 0.0
             return 0.0
 
-        # shared windowed mean / variance (feeds the ACF head AND the drift control sigma)
         mean = 0.0
         for v in vals:
             mean += v
@@ -93,10 +92,9 @@ class Unified(Detector):
         var = den / m
         sd = sqrt(var) if var > 1e-12 else 1e-6
 
-        # DERIVATIVE head (spike / transient); prev = buffer's 2nd-newest
         dx = x - vals[m - 2]
         z_deriv = abs(dx - self.mu_d) / (sqrt(self.var_d) + _EPS)
-        if z_deriv < self.HOLD:                       # anomaly-aware HOLD
+        if z_deriv < self.HOLD:
             diff = dx - self.mu_d
             self.mu_d += self.alpha * diff
             self.var_d = (1.0 - self.alpha) * (self.var_d + self.alpha * diff * diff)
@@ -104,17 +102,15 @@ class Unified(Detector):
                 self.var_d = 1e-6
         s_drv = z_deriv / self.TH_DRV
 
-        # DRIFT head: held EWMA control chart, scale from the shared windowed sd
         control_sigma = sd * sqrt(self.lam / (2.0 - self.lam))
         s_ewmv = abs(self.z - self.mu) / (control_sigma + _EPS)
-        self.z = self.lam * x + (1.0 - self.lam) * self.z       # fast smoother always tracks
-        if s_ewmv < self.TH_EWMV:                                # freeze slow mean on anomaly
+        self.z = self.lam * x + (1.0 - self.lam) * self.z
+        if s_ewmv < self.TH_EWMV:
             self.mu += self.alpha_s * (x - self.mu)
         s_drift = s_ewmv / self.TH_EWMV
-        if s_drift > self.DR_CAP:                                 # clip anti-pollution
+        if s_drift > self.DR_CAP:
             s_drift = self.DR_CAP
 
-        # PERIODICITY head: gated ACF-drop
         s_per = 0.0
         if self.buf.is_full():
             if self.period == 0:
@@ -143,8 +139,6 @@ class Unified(Detector):
         return score
 
     def state_floats(self) -> int:
-        # 5 float32 scalars: mu_d, var_d, z, mu, r_ref. `period` is a small integer (the
-        # dominant lag, <= BUF/2) accounted for with n/flags in the base +8 counter allowance.
         return 5
 
     def state_buffer_len(self) -> int:

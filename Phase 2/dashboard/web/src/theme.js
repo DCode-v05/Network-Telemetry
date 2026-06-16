@@ -1,4 +1,3 @@
-// Shared visual constants + ECharts base options for the Signal Lab theme.
 
 export const C = {
   ink: "#05070e",
@@ -19,7 +18,6 @@ export const C = {
 export const FONT_MONO = "JetBrains Mono, ui-monospace, monospace";
 export const FONT_BODY = "Hanken Grotesk, system-ui, sans-serif";
 
-// Heatmap colour ramps (low → high)
 export const RAMP_F1 = [
   "#0a1020", "#0e2b35", "#0f4a47", "#13784f", "#27a85f", "#7fd86a", "#d7f59a",
 ];
@@ -27,7 +25,6 @@ export const RAMP_RATE = [
   "#3a0d18", "#7a1f24", "#b9542a", "#d9952f", "#a9c64a", "#4fb96a", "#34e5b0",
 ];
 
-// Base layout shared by every chart
 export function base(extra = {}) {
   return {
     backgroundColor: "transparent",
@@ -53,7 +50,6 @@ export const AXIS = {
   nameTextStyle: { color: C.faint, fontFamily: FONT_MONO, fontSize: 11, fontWeight: 500 },
 };
 
-// Add alpha to a hex colour
 export function alpha(hex, a) {
   const h = hex.replace("#", "");
   const r = parseInt(h.slice(0, 2), 16);

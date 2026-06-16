@@ -12,7 +12,6 @@ function Chart({ option, height = 400 }) {
 const alab = (meta, a) => meta.anomaly_labels[a] ?? a;
 const col = (meta, d) => meta.colors[d] ?? "#888";
 
-/* ───────────── Confirmation-gate effect: FP eliminated vs TP retained ──── */
 export function GateEffect({ data, meta }) {
   const families = data.gate_fp.map((g) => g.family);
   const fpRed = data.gate_fp.map((g) => (g.fp_reduction_pct ?? 0) * 100);
@@ -43,7 +42,6 @@ export function GateEffect({ data, meta }) {
   );
 }
 
-/* ───────────── Ensemble vs best individual (metric toggle) ─────────────── */
 export function EnsembleVsBest({ data, meta }) {
   const [metric, setMetric] = useState("tpr");
   const rows = data.ensemble_vs_best;
@@ -80,7 +78,6 @@ export function EnsembleVsBest({ data, meta }) {
   );
 }
 
-/* ───────────── Phase 2 vs Phase 3 ──────────────────────────────────────── */
 export function PhaseCompare({ data, meta }) {
   const rows = data.phase_compare;
   if (!rows || !rows.length) return null;

@@ -1,4 +1,3 @@
-# src/detectors/page_hinkley.py
 import math
 from src.detectors.base import DetectorBase, DetectionResult
 
@@ -63,15 +62,12 @@ class PageHinkleyDetector(DetectorBase):
 
         z = (value - self._mu) / self._sigma0
 
-        # Update adaptive mean
         self._mu = self._alpha * self._mu + (1.0 - self._alpha) * value
 
-        # Upward direction
         self._ph_up  += z - self._delta
         self._max_up  = max(self._max_up, self._ph_up)
         ph_score_up   = self._max_up - self._ph_up
 
-        # Downward direction
         self._ph_dn  += -z - self._delta
         self._max_dn  = max(self._max_dn, self._ph_dn)
         ph_score_dn   = self._max_dn - self._ph_dn

@@ -6,10 +6,10 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "src", "python"))
-from eval.tabio import read_csv  # noqa: E402
+from eval.tabio import read_csv
 
 RESULTS = os.path.normpath(os.path.join(HERE, "..", "results"))
-ROOT_MD = os.path.normpath(os.path.join(HERE, "..", "..", "Phase4_Solution_Architecture_and_Results.md"))
+ROOT_MD = os.path.normpath(os.path.join(HERE, "..", "docs", "ARCHITECTURE_AND_RESULTS.md"))
 
 TYPES = ["spike", "drift", "periodicity", "transient", "real"]
 CTRL = ["spike", "drift", "periodicity", "transient"]
@@ -135,7 +135,6 @@ def gen_results():
            "operating point. `event_f1_opt` = event-tolerant F1 (±2) at the operational "
            "threshold (the headline for point anomalies)." % (310,)]
 
-    # ---- recommendation ----
     rec = sel.get("recommended", {})
     out.append("\n## Recommended configurations (budget-gated)\n")
     out.append("| role | detector | window | VUS-PR | F1 | µs/sample | bytes | within budget |")
@@ -148,7 +147,6 @@ def gen_results():
                 f(c.get("f1")), f(c.get("us_per_sample"), 4), c.get("state_bytes"),
                 "✅" if c.get("budget_ok") else "❌"))
 
-    # ---- condition -> algorithm ----
     out.append("\n## Condition → algorithm (best detector per anomaly type)\n")
     out.append("| anomaly type | detector | window | VUS-PR | F1 |")
     out.append("|---|---|---|---|---|")
@@ -156,7 +154,6 @@ def gen_results():
         out.append("| %s | **%s** | %s | %s | %s |" % (
             t, c["detector"], c["window"], f(c.get("vus_pr")), f(c.get("f1"))))
 
-    # ---- THE unified detector (headline) ----
     out.append("\n## The `unified` single all-in-one detector — event-F1 by type × window\n")
     out.append("| window | spike | drift | periodicity | transient | **min (4 types)** | bytes |")
     out.append("|---|---|---|---|---|---|---|")
@@ -171,7 +168,6 @@ def gen_results():
     out.append("\n*At window 30–50 the single 96-byte `unified` detector clears event-F1 ≥ 0.90 "
                "on all four controlled anomaly types.*")
 
-    # ---- per-detector summary at best window (by VUS-PR) ----
     best = {}
     for r in agg:
         d = r["detector"]
@@ -190,7 +186,6 @@ def gen_results():
             f(r.get("f1")), f(r.get("event_f1_opt")), f(r.get("mcc")), f(r.get("latency"), 2),
             f(c.get("c_ns_per_sample"), 1), cb if cb is not None else "—"))
 
-    # ---- per-type leaderboards (event_f1_opt) ----
     out.append("\n## Per-anomaly-type leaderboard (top 5 by event_f1_opt, best window)\n")
     for t in TYPES:
         sub = [r for r in agt if r["anomaly_type"] == t]
@@ -206,7 +201,6 @@ def gen_results():
             f(r.get("vus_pr"))) for r in top)
         out.append("- " + line)
 
-    # ---- C cost table ----
     ccost = read_csv(os.path.join(RESULTS, "c_cost.csv"))
     out.append("\n## On-device cost (measured C twin, -O2)\n")
     out.append("| detector | win | ns/sample | µs/sample | state bytes | < 100 µs | < 100 B |")
@@ -220,7 +214,6 @@ def gen_results():
             "✅" if (us is not None and float(us) < 100) else "❌",
             "✅" if (by is not None and int(by) < 100) else "❌"))
 
-    # ---- full grid appendix ----
     out.append("\n## Appendix — full grid: event_f1_opt by detector × window\n")
     out.append("| detector | w10 | w20 | w30 | w50 |")
     out.append("|---|---|---|---|---|")

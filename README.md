@@ -6,6 +6,30 @@ This project investigates lightweight, on-device anomaly detection algorithms fo
 
 ---
 
+## Phase Comparison (1 → 2 → 3 → 4)
+
+| Aspect | Phase 1 | Phase 2 | Phase 3 | Phase 4 |
+|---|---|---|---|---|
+| **Focus** | Algorithm study (theory) | Single-detector benchmark | Two-layer ensemble + confirmation gate | Production build: intelligence **and** lightweight, with a C twin |
+| **Detectors** | 15 reviewed → 6 selected | 6 single | 14 (6 + 8 gated/ensemble) | 20 (9 single C-ported + 7 variants + 4 ensembles incl. `unified`) |
+| **Datasets** | — (theory) | CESNET real (283 IPs) | CESNET (reused) | synthetic (4 types, labelled, spike ≥ 6σ) + 14 real NAB |
+| **Language** | docs only | Python | Python (reuses P2 via bridge) | Python + portable **C twin** (parity-verified) |
+| **Trials / runs** | — | 2,880 | 6,720 | 24,800 |
+| **Metrics** | spec (F1, latency, FPR) | TPR/FPR/F1/latency | + gate-FP-reduction, ensemble-vs-best | + VUS-PR, MCC, **event_f1_opt**, measured C ns/sample + bytes |
+| **Cost** | theoretical budgets | — | — | **measured** (hard < 100 µs / < 100 B gate) |
+| **Tests** | — | 70+ | 48 | 65 |
+| **Headline finding** | 6 viable / 9 rejected | no single detector wins all types | gating cuts FP 50–85%, ensemble keeps recall | `unified` 96-byte detector ≥ 0.90 on all 4 types; `deriv` Pareto-dominant; memory is the binding constraint |
+
+### Per-phase findings
+- **Phase 1** — From 15 candidates, **6 selected** for empirical testing (EWMA, CUSUM, Page-Hinkley, Z-Score, MAD, Sliding-Window); **9 rejected** on theoretical grounds (ADWIN, DDM, Kalman, Matrix Profile, Spectral Residual, SAX, ARIMA, PELT, Binary Segmentation) — too much memory/compute or requiring long histories. Docs: `Phase 1/Algorithm_Study_Document.md`, `HPE_Evaluation_Criteria_Specification.md`.
+- **Phase 2** — **No single detector covers all anomaly types**: MAD wins bursts/transients, EWMA wins rate shifts, Page-Hinkley/CUSUM win drifts; precision collapses under class imbalance (5–20 anomalous samples per ~280). This motivates the Phase 3 ensemble. Docs: `Phase 2/docs/PHASE_2_DOCUMENTATION.md`, `PHASE_2_FINDINGS.md`.
+- **Phase 3** — **Confirmation gating sharply cuts false positives** (MAD 14.6→5.6 %, Z-Score 5.1→0.74 %, CUSUM 12→5.7 % FPR) while the two-layer ensemble keeps recall within ~4 pp of the best single detector. Doc: `Phase 3/docs/PHASE_3_DOCUMENTATION.md`.
+- **Phase 4** — The single **96-byte `unified` detector reaches event-F1 ≥ 0.90 on all four controlled anomaly types** (window 50); `deriv` is the Pareto-dominant default; every detector is < 100 µs/sample on the measured C twin, so **memory, not time, is the binding constraint**; a 4σ single-sample spike is a proven detection limit; real mixed NAB traffic stays below 0.90. Docs: `Phase 4/report/Phase4_Report.md`, `Phase 4/docs/ARCHITECTURE_AND_RESULTS.md`, `Phase 4/docs/PROJECT_STATE.md`.
+
+> **Repo conventions:** one README (this file) at the root; each phase keeps its own non-README docs under the phase folder. Regenerable artifacts (venvs, `node_modules`, build output, downloaded datasets, caches) are git-ignored — restore with `pip install` / `npm install` / the download scripts.
+
+---
+
 ## Project Details
 
 ### Problem Statement

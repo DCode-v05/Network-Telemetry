@@ -22,7 +22,6 @@ def _coerce(v):
         return v
     if math.isnan(f):
         return None
-    # keep integer-looking values as int (windows, seeds)
     if f.is_integer() and "." not in str(v) and "e" not in str(v).lower():
         return int(f)
     return f

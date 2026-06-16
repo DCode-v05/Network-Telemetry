@@ -45,9 +45,6 @@ from ensemble.voting_layer       import VotingLayer
 from ensemble.two_layer_ensemble import TwoLayerEnsemble
 
 
-# ---------------------------------------------------------------------------
-# Build the architecture exactly like evaluation/harness.py does
-# ---------------------------------------------------------------------------
 def _make_base(key: str, window_size: int):
     p      = cfg.DETECTORS
     warmup = max(window_size, 20)
@@ -91,9 +88,6 @@ def build_parts(window_size: int):
     return ensemble, standalone_spike, standalone_sustained
 
 
-# ---------------------------------------------------------------------------
-# Run the ensemble on one injected series and attribute every alarm
-# ---------------------------------------------------------------------------
 def analyse(series, anomaly_type, window_size, seed, position=None):
     injector = AnomalyInjector(random_seed=seed)
     params   = cfg.INJECTION[anomaly_type].copy()
@@ -110,7 +104,6 @@ def analyse(series, anomaly_type, window_size, seed, position=None):
     spike_fire = np.array([1 if r.is_anomaly else 0 for r in spike_res], dtype=np.int8)
     sust_fire  = np.array([1 if r.is_anomaly else 0 for r in sust_res], dtype=np.int8)
 
-    # Sanity: the ensemble alarm IS the OR of the two layers (the architecture rule).
     assert np.array_equal(ens_alarm, (spike_fire | sust_fire)), \
         "ensemble alarm != spike OR sustained (architecture mismatch)"
 
@@ -124,7 +117,7 @@ def analyse(series, anomaly_type, window_size, seed, position=None):
 
     alarm_idx     = np.flatnonzero(ens_alarm == 1)
     in_window     = [i for i in alarm_idx if start <= i < end]
-    near_window   = [i for i in alarm_idx if start <= i < start + dwin]   # "timely"
+    near_window   = [i for i in alarm_idx if start <= i < start + dwin]
     out_window    = [i for i in alarm_idx if not (start <= i < end)]
 
     detected = len(near_window) > 0
@@ -139,7 +132,6 @@ def analyse(series, anomaly_type, window_size, seed, position=None):
 
     caught_by = layer_of(first_in) if first_in is not None else "-"
 
-    # Per-layer behaviour: hits inside the anomaly vs false alarms outside it.
     l1_in  = int(spike_fire[in_mask].sum());  l1_out = int(spike_fire[~in_mask].sum())
     l2_in  = int(sust_fire[in_mask].sum());   l2_out = int(sust_fire[~in_mask].sum())
 
@@ -164,9 +156,6 @@ def analyse(series, anomaly_type, window_size, seed, position=None):
     }
 
 
-# ---------------------------------------------------------------------------
-# Printing
-# ---------------------------------------------------------------------------
 def print_summary(rows):
     print("\n" + "=" * 78)
     print("  WHICH ANOMALY IS DETECTED  (TwoLayerEnsemble, Phase 3 architecture)")
@@ -217,7 +206,6 @@ def print_timeline(r, pad_before=3, pad_after=None):
         print(f"  {i:>6}  {truth:>5}  {alarm:>5}  {layer:<14}{marker}")
 
 
-# ---------------------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser(description="Phase 3 — which anomaly is detected, by which layer")
     ap.add_argument("--anomaly", default=None,
@@ -237,7 +225,6 @@ def main():
     )
     if not series_list:
         raise SystemExit("No CESNET series loaded — check cfg.DATA_DIR.")
-    # pick the first series long enough for any injection
     ip_id, series = next(((i, s) for i, s in series_list if len(s) >= 200), series_list[0])
     print(f"Using IP series '{ip_id}' ({len(series)} samples), window={args.window}, seed={seed}")
 

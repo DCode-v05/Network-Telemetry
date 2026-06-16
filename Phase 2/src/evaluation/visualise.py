@@ -1,20 +1,3 @@
-# src/evaluation/visualise.py
-# ─────────────────────────────────────────────────────────────────────────────
-# Visualisation module — generates all result plots for ONE or TWO iterations.
-#
-# Usage (single iteration):
-#   from src.evaluation.visualise import Visualiser
-#   v = Visualiser(results_csv_dir="results/csv", plots_dir="results/plots", iteration=1)
-#   v.run_all()
-#
-# Usage (compare two iterations):
-#   from src.evaluation.visualise import compare_iterations
-#   compare_iterations(
-#       csv_iter1="results_iter1/csv/aggregated_results.csv",
-#       csv_iter2="results_iter2/csv/aggregated_results.csv",
-#       out_dir="results/comparison_plots"
-#   )
-# ─────────────────────────────────────────────────────────────────────────────
 
 import os
 import matplotlib
@@ -26,7 +9,6 @@ import numpy as np
 import pandas as pd
 from typing import Optional
 
-# ── Consistent colour palette ─────────────────────────────────────────────────
 DET_COLORS = {
     "ZScore":        "#1D9E75",
     "MAD":           "#7F77DD",
@@ -63,9 +45,6 @@ def _save(fig, path: str, dpi: int = 150) -> None:
     print(f"  saved -> {path}")
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# CLASS: single-iteration visualiser
-# ═══════════════════════════════════════════════════════════════════════════════
 
 class Visualiser:
     """
@@ -116,7 +95,6 @@ class Visualiser:
     def _tag(self) -> str:
         return f"Iteration {self.iteration}"
 
-    # ── Plot 1: F1 heatmap ────────────────────────────────────────────────────
 
     def plot_f1_heatmap(self) -> None:
         df = self.df
@@ -154,7 +132,6 @@ class Visualiser:
         plt.tight_layout()
         _save(fig, self._path("f1_heatmap"))
 
-    # ── Plot 2: TPR + FPR grouped bars per anomaly type ───────────────────────
 
     def plot_tpr_fpr_bars(self) -> None:
         df   = self.df
@@ -191,7 +168,6 @@ class Visualiser:
         plt.tight_layout()
         _save(fig, self._path("tpr_fpr_bars"))
 
-    # ── Plot 3: TPR line per anomaly type, all detectors ─────────────────────
 
     def plot_tpr_by_anomaly(self) -> None:
         df   = self.df
@@ -209,7 +185,6 @@ class Visualiser:
                 ax.plot(rows["window_size"], rows["tpr_mean"],
                         marker="o", linewidth=2, markersize=5,
                         color=_color(d), label=d)
-                # Shaded std band
                 ax.fill_between(rows["window_size"],
                                 rows["tpr_mean"] - rows["tpr_std"].clip(0),
                                 (rows["tpr_mean"] + rows["tpr_std"]).clip(0, 1),
@@ -227,7 +202,6 @@ class Visualiser:
         plt.tight_layout()
         _save(fig, self._path("tpr_vs_window"))
 
-    # ── Plot 4: FPR summary bar ───────────────────────────────────────────────
 
     def plot_fpr_comparison(self) -> None:
         df   = self.df
@@ -249,7 +223,6 @@ class Visualiser:
         plt.tight_layout()
         _save(fig, self._path("fpr_summary"))
 
-    # ── Plot 5: Detection rate heatmap ────────────────────────────────────────
 
     def plot_detection_rate(self) -> None:
         df   = self.df
@@ -278,7 +251,6 @@ class Visualiser:
         plt.tight_layout()
         _save(fig, self._path("detection_rate"))
 
-    # ── Plot 6: F1 vs window size ─────────────────────────────────────────────
 
     def plot_f1_vs_window(self) -> None:
         df   = self.df
@@ -309,7 +281,6 @@ class Visualiser:
         plt.tight_layout()
         _save(fig, self._path("f1_vs_window"))
 
-    # ── Plot 7: Detection latency ─────────────────────────────────────────────
 
     def plot_detection_latency(self) -> None:
         df   = self.df
@@ -344,13 +315,11 @@ class Visualiser:
         plt.tight_layout()
         _save(fig, self._path("detection_latency"))
 
-    # ── Plot 8: Radar chart — detector profile ────────────────────────────────
 
     def plot_radar(self) -> None:
         df   = self.df
         dets = sorted(df["detector_short"].unique())
 
-        # Compute 4 radar axes per detector (avg across window sizes)
         metrics = {}
         for d in dets:
             sub = df[df["detector_short"] == d]
@@ -387,9 +356,6 @@ class Visualiser:
         _save(fig, self._path("radar"))
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# FUNCTION: compare two iterations side by side
-# ═══════════════════════════════════════════════════════════════════════════════
 
 def compare_iterations(
     csv_iter1: str,
@@ -443,7 +409,6 @@ def _compare_tpr(df1, df2, out_dir, dpi):
         b1 = ax.bar(x - width/2, tpr1, width, label="Iter 1", color="#B4B2A9", alpha=0.9)
         b2 = ax.bar(x + width/2, tpr2, width, label="Iter 2", color=[_color(d) for d in dets], alpha=0.9)
 
-        # Delta arrows
         for i, (v1, v2) in enumerate(zip(tpr1, tpr2)):
             delta = v2 - v1
             if abs(delta) > 0.02:
@@ -481,7 +446,7 @@ def _compare_fpr(df1, df2, out_dir, dpi):
     for i, (v1, v2) in enumerate(zip(fpr1, fpr2)):
         delta = v2 - v1
         if abs(delta) > 0.01:
-            color = "#1D9E75" if delta < 0 else "#E24B4A"  # lower FPR is good
+            color = "#1D9E75" if delta < 0 else "#E24B4A"
             ax.annotate(f"{delta:+.2f}", xy=(x[i] + width/2, v2 + 0.008),
                         ha="center", fontsize=8, color=color, fontweight="bold")
 

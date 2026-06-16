@@ -27,7 +27,6 @@ def best_per_type(agg_dwt, cost_index, budget_fn, prefer_single=False):
                 by = c.get("state_bytes")
             ok = budget_fn(us, by)[0]
             is_single = registry.family(det) != "ensemble"
-            # sort key: budget first, (single if requested), then quality
             return (ok, (is_single if prefer_single else True),
                     r.get("vus_pr") or 0.0, r.get("f1") or 0.0)
 

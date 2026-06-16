@@ -1,8 +1,3 @@
-# dashboard/generate_report.py
-#
-# Generates a self-contained interactive HTML dashboard from evaluation CSVs.
-# Run standalone:  python dashboard/generate_report.py
-# Or called automatically by main.py after evaluation.
 
 import os
 import sys
@@ -12,13 +7,11 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
 BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 AGG_CSV     = os.path.join(BASE_DIR, "results", "csv", "aggregated_results.csv")
 RAW_CSV     = os.path.join(BASE_DIR, "results", "csv", "raw_trial_results.csv")
 OUTPUT_HTML = os.path.join(BASE_DIR, "results", "dashboard.html")
 
-# ── Config constants ──────────────────────────────────────────────────────────
 ANOMALY_TYPES = ["burst", "rate_shift", "gradual_drift", "transient"]
 WINDOW_SIZES  = [10, 20, 30, 50]
 DET_ORDER     = ["ZScore", "MAD", "EWMA", "CUSUM", "PageHinkley", "SlidingWindow"]
@@ -32,7 +25,6 @@ DET_COLORS = {
     "SlidingWindow": "#888780",
 }
 
-# Common Plotly layout kwargs applied to every figure
 _FIG_LAYOUT = dict(
     template="plotly_dark",
     paper_bgcolor="rgba(0,0,0,0)",
@@ -42,7 +34,6 @@ _FIG_LAYOUT = dict(
 )
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def short_name(full_name: str) -> str:
     """'ZScore(w=10, thr=3.0)' -> 'ZScore'. Mirrors visualise.py convention."""
@@ -75,7 +66,6 @@ def load_data() -> tuple:
     return agg_df, raw_df
 
 
-# ── Chart builders ────────────────────────────────────────────────────────────
 
 def _heatmap_figure(agg_df: pd.DataFrame, z_col: str, title_prefix: str,
                     colorscale: str) -> go.Figure:
@@ -86,12 +76,11 @@ def _heatmap_figure(agg_df: pd.DataFrame, z_col: str, title_prefix: str,
     dets = [d for d in DET_ORDER if d in agg_df["detector_short"].unique()]
 
     traces = []
-    all_annotations = []   # one list of annotation dicts per window_size
+    all_annotations = []
 
     for idx, w in enumerate(WINDOW_SIZES):
         sub = agg_df[agg_df["window_size"] == w]
 
-        # Build z matrix: rows=detectors, cols=anomaly_types
         z_matrix = []
         for d in dets:
             row = []
@@ -101,7 +90,6 @@ def _heatmap_figure(agg_df: pd.DataFrame, z_col: str, title_prefix: str,
                 row.append(val)
             z_matrix.append(row)
 
-        # Annotation dicts for this window_size
         ann_list = []
         for ri, d in enumerate(dets):
             for ci, at in enumerate(ANOMALY_TYPES):
@@ -132,7 +120,6 @@ def _heatmap_figure(agg_df: pd.DataFrame, z_col: str, title_prefix: str,
             visible=(idx == 0),
         ))
 
-    # Dropdown buttons
     buttons = []
     for idx, w in enumerate(WINDOW_SIZES):
         visible_arr = [i == idx for i in range(len(WINDOW_SIZES))]
@@ -182,7 +169,6 @@ def make_tpr_fpr_bars(agg_df: pd.DataFrame) -> go.Figure:
     """
     dets = [d for d in DET_ORDER if d in agg_df["detector_short"].unique()]
 
-    # Average across window_sizes for each (detector, anomaly_type)
     grouped = (
         agg_df.groupby(["detector_short", "anomaly_type"])[["tpr_mean", "fpr_mean"]]
         .mean()
@@ -192,7 +178,6 @@ def make_tpr_fpr_bars(agg_df: pd.DataFrame) -> go.Figure:
     tpr_traces, fpr_traces = [], []
     for d in dets:
         sub = grouped[grouped["detector_short"] == d]
-        # Align to ANOMALY_TYPES order
         tpr_vals = [float(sub[sub["anomaly_type"] == at]["tpr_mean"].values[0])
                     if len(sub[sub["anomaly_type"] == at]) else 0.0
                     for at in ANOMALY_TYPES]
@@ -209,7 +194,6 @@ def make_tpr_fpr_bars(agg_df: pd.DataFrame) -> go.Figure:
     tpr_visible = [True]  * n + [False] * n
     fpr_visible = [False] * n + [True]  * n
 
-    # FPR reference line shape
     fpr_shape = [dict(
         type="line", xref="paper", x0=0, x1=1,
         y0=0.05, y1=0.05,
@@ -375,15 +359,13 @@ def make_radar_chart(agg_df: pd.DataFrame) -> go.Figure:
     AXES = ["F1 Score", "TPR", "Precision", "Detection Rate", "Low FPR"]
     COLS = ["f1_mean", "tpr_mean", "precision_mean", "detection_rate", "fpr_mean"]
 
-    # Raw values per detector (mean across all anomaly_types and window_sizes)
     raw = {}
     for d in dets:
         sub = agg_df[agg_df["detector_short"] == d]
         vals = [sub[c].mean() for c in COLS]
-        vals[-1] = 1.0 - vals[-1]   # invert FPR → "Low FPR" (higher = better)
+        vals[-1] = 1.0 - vals[-1]
         raw[d] = vals
 
-    # Normalize each axis across detectors
     axis_min = [min(raw[d][i] for d in dets) for i in range(len(AXES))]
     axis_max = [max(raw[d][i] for d in dets) for i in range(len(AXES))]
 
@@ -396,7 +378,7 @@ def make_radar_chart(agg_df: pd.DataFrame) -> go.Figure:
     traces = []
     for d in dets:
         norm = normalize(raw[d])
-        r    = norm + [norm[0]]          # close the polygon
+        r    = norm + [norm[0]]
         theta = AXES + [AXES[0]]
 
         color = det_color(d)
@@ -405,7 +387,6 @@ def make_radar_chart(agg_df: pd.DataFrame) -> go.Figure:
         b_int = int(color[5:7], 16)
         fill_color = f"rgba({r_int},{g_int},{b_int},0.2)"
 
-        # Build hover text with raw values
         raw_vals = raw[d]
         custom = [
             f"{AXES[i]}: {raw_vals[i]:.3f}"
@@ -440,7 +421,6 @@ def make_radar_chart(agg_df: pd.DataFrame) -> go.Figure:
     return fig
 
 
-# ── HTML assembly ─────────────────────────────────────────────────────────────
 
 def fig_to_html(fig: go.Figure, first: bool = False) -> str:
     return fig.to_html(
@@ -658,7 +638,6 @@ def build_html(chart_divs: dict, timestamp: str) -> str:
 </html>"""
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
 
 def generate(output_path: str = OUTPUT_HTML) -> None:
     """

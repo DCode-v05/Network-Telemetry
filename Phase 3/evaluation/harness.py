@@ -23,8 +23,8 @@ from tqdm import tqdm
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import config as cfg                                      # Phase 3 config
-from _phase2_bridge import (                              # Phase 2 imports via bridge
+import config as cfg
+from _phase2_bridge import (
     DetectorBase,
     ZScoreDetector, MADDetector, EWMADetector,
     CUSUMDetector, PageHinkleyDetector, SlidingWindowStatsDetector,
@@ -39,9 +39,6 @@ from ensemble.two_layer_ensemble import TwoLayerEnsemble
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Sanitisation — verbatim from Phase 2 harness so CSV stays Windows-cp1252-safe
-# ---------------------------------------------------------------------------
 def _sanitise(text: str) -> str:
     replacements = {
         "λ": "lambda",
@@ -58,9 +55,6 @@ def _sanitise(text: str) -> str:
     return text.encode("ascii", errors="replace").decode("ascii")
 
 
-# ---------------------------------------------------------------------------
-# Detector factory — Phase 3 expanded roster
-# ---------------------------------------------------------------------------
 def _make_individuals(window_size: int) -> Dict[str, DetectorBase]:
     """Return the six Phase 2 detectors keyed by config short-name."""
     p      = cfg.DETECTORS
@@ -99,21 +93,17 @@ def build_detectors(window_size: int) -> List[DetectorBase]:
 
     detectors: List[DetectorBase] = []
 
-    # 1. Individual baselines (re-benchmarked for parity)
     individuals = _make_individuals(window_size)
     if cfg.ENSEMBLE.get("include_individual_baselines", True):
-        # Stable ordering matching Phase 2's harness
         for key in ("zscore", "mad", "ewma", "cusum", "page_hinkley", "sliding_window"):
             detectors.append(individuals[key])
 
-    # 2. Gated baselines (only for the four detectors used in either layer)
     if cfg.ENSEMBLE.get("include_gated_baselines", True):
         gated_keys = sorted(set(spike_cfg["members"]) | set(sustain_cfg["members"]))
         for key in gated_keys:
-            child = _make_individuals(window_size)[key]   # fresh instance per gate
+            child = _make_individuals(window_size)[key]
             detectors.append(ConfirmationGate(child, n_consecutive=n))
 
-    # 3. Voting layers
     spike_children = [
         ConfirmationGate(_make_individuals(window_size)[k], n_consecutive=n)
         for k in spike_cfg["members"]
@@ -147,8 +137,6 @@ def build_detectors(window_size: int) -> List[DetectorBase]:
             layer_name = "Spike",
         ))
 
-    # 4. Top-level ensemble — uses FRESH spike/sustained instances so children
-    #    aren't shared with steps 3 (which would couple state across detectors).
     top_spike_children = [
         ConfirmationGate(_make_individuals(window_size)[k], n_consecutive=n)
         for k in spike_cfg["members"]
@@ -173,9 +161,6 @@ def build_detectors(window_size: int) -> List[DetectorBase]:
     return detectors
 
 
-# ---------------------------------------------------------------------------
-# Trial loop — unchanged from Phase 2 except for output paths
-# ---------------------------------------------------------------------------
 def run_evaluation() -> List[Dict[str, Any]]:
     os.makedirs(cfg.RESULTS_CSV_DIR, exist_ok=True)
     os.makedirs(cfg.RESULTS_PLT_DIR, exist_ok=True)

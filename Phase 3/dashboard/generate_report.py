@@ -17,13 +17,12 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-# Phase 3 root → enable bridge for any helper imports
 _HERE      = os.path.dirname(os.path.abspath(__file__))
 _PHASE3    = os.path.dirname(_HERE)
 if _PHASE3 not in sys.path:
     sys.path.insert(0, _PHASE3)
 
-from evaluation.phase3_metrics import (   # noqa: E402
+from evaluation.phase3_metrics import (
     load_aggregated_csv,
     load_raw_csv,
     ensemble_vs_best_single,
@@ -31,42 +30,33 @@ from evaluation.phase3_metrics import (   # noqa: E402
     per_anomaly_winner,
 )
 
-# ── Paths ────────────────────────────────────────────────────────────────────
 BASE_DIR    = _PHASE3
 AGG_CSV     = os.path.join(BASE_DIR, "results", "csv", "aggregated_results.csv")
 RAW_CSV     = os.path.join(BASE_DIR, "results", "csv", "raw_trial_results.csv")
 OUTPUT_HTML = os.path.join(BASE_DIR, "results", "dashboard.html")
 
-# ── Config ───────────────────────────────────────────────────────────────────
 ANOMALY_TYPES = ["burst", "rate_shift", "gradual_drift", "transient"]
 
 DET_ORDER = [
-    # Phase 2 baselines
     "ZScore", "MAD", "EWMA", "CUSUM", "PageHinkley", "SlidingWindow",
-    # Phase 3 gated
     "GatedZScore", "GatedMAD", "GatedEWMA", "GatedCUSUM",
-    # Phase 3 voting + top-level
     "Spike_AND", "Spike_OR", "Sustained_OR", "TwoLayerEnsemble",
 ]
 
 DET_COLORS = {
-    # Phase 2 (kept identical for visual continuity)
     "ZScore":           "#1D9E75",
     "MAD":              "#7F77DD",
     "EWMA":             "#D85A30",
     "CUSUM":            "#378ADD",
     "PageHinkley":      "#BA7517",
     "SlidingWindow":    "#888780",
-    # Phase 3 gated — desaturated tints of their base
     "GatedZScore":      "#A8D5C2",
     "GatedMAD":         "#BBB6E8",
     "GatedEWMA":        "#EBB7A2",
     "GatedCUSUM":       "#A2C4E8",
-    # Phase 3 voting layers — distinct accents
     "Spike_AND":        "#E0457B",
     "Spike_OR":         "#F09EBC",
     "Sustained_OR":     "#7BC8B7",
-    # Top-level ensemble — gold to draw the eye
     "TwoLayerEnsemble": "#F4C152",
 }
 
@@ -79,7 +69,6 @@ _FIG_LAYOUT = dict(
 )
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
 
 def short_name(full_name: str) -> str:
     """'GatedMAD(n=2)' -> 'GatedMAD'; 'Spike_AND(MAD+ZScore)' -> 'Spike_AND'.
@@ -113,7 +102,6 @@ def _present_window_sizes(agg_df: pd.DataFrame) -> list:
     return sorted(agg_df["window_size"].unique().tolist())
 
 
-# ── Heatmap (F1 + detection rate) ────────────────────────────────────────────
 
 def _heatmap_figure(agg_df, z_col, title_prefix, colorscale):
     windows = _present_window_sizes(agg_df)
@@ -185,7 +173,6 @@ def make_detection_rate_heatmap(agg_df):
     return _heatmap_figure(agg_df, "detection_rate", "Detection Rate Heatmap", "RdYlGn")
 
 
-# ── TPR / FPR bars ───────────────────────────────────────────────────────────
 
 def make_tpr_fpr_bars(agg_df):
     dets = [d for d in DET_ORDER if d in agg_df["detector_short"].unique()]
@@ -235,13 +222,11 @@ def make_tpr_fpr_bars(agg_df):
     return fig
 
 
-# ── F1 vs Window ─────────────────────────────────────────────────────────────
 
 def make_f1_vs_window(agg_df):
     windows = _present_window_sizes(agg_df)
     dets    = [d for d in DET_ORDER if d in agg_df["detector_short"].unique()]
     if len(windows) < 2:
-        # Smoke run with a single window — return a placeholder bar
         fig = go.Figure(go.Bar(x=dets, y=[0]*len(dets)))
         fig.update_layout(**_FIG_LAYOUT,
                           title=dict(text="F1 vs Window — single window only", x=0.5),
@@ -291,7 +276,6 @@ def make_f1_vs_window(agg_df):
     return fig
 
 
-# ── Latency bars ─────────────────────────────────────────────────────────────
 
 def make_latency_bars(agg_df):
     filtered = agg_df[agg_df["avg_detection_latency"] >= 0].copy()
@@ -324,7 +308,6 @@ def make_latency_bars(agg_df):
     return fig
 
 
-# ── Radar ────────────────────────────────────────────────────────────────────
 
 def make_radar_chart(agg_df):
     dets = [d for d in DET_ORDER if d in agg_df["detector_short"].unique()]
@@ -374,7 +357,6 @@ def make_radar_chart(agg_df):
     return fig
 
 
-# ── Figure 9 — Ensemble vs Best Individual ──────────────────────────────────
 
 def make_ensemble_vs_best_individual(agg_rows):
     deltas = ensemble_vs_best_single(agg_rows, ensemble_name="TwoLayerEnsemble")
@@ -386,7 +368,6 @@ def make_ensemble_vs_best_individual(agg_rows):
         return fig
 
     df = pd.DataFrame(deltas)
-    # Average across windows for the headline view
     g = df.groupby("anomaly_type").agg(
         ensemble_f1   = ("ensemble_f1",   "mean"),
         best_f1       = ("best_single_f1", "mean"),
@@ -433,7 +414,6 @@ def make_ensemble_vs_best_individual(agg_rows):
     return fig
 
 
-# ── Figure 10 — Confirmation gate FP reduction ──────────────────────────────
 
 def make_gate_fp_reduction(raw_rows):
     reductions = gate_fp_reduction(raw_rows)
@@ -477,10 +457,8 @@ def make_gate_fp_reduction(raw_rows):
     return fig
 
 
-# ── Figure 11 (optional) — Phase 2 vs Phase 3 comparison ────────────────────
 
 def make_phase_comparison(p2_rows, p3_rows):
-    # Compare Phase 2's best individual vs Phase 3's TwoLayerEnsemble per anomaly
     p2_winner = per_anomaly_winner(p2_rows)
     p3_deltas = ensemble_vs_best_single(p3_rows, ensemble_name="TwoLayerEnsemble")
     p3_df     = pd.DataFrame(p3_deltas) if p3_deltas else None
@@ -521,7 +499,6 @@ def make_phase_comparison(p2_rows, p3_rows):
     return fig
 
 
-# ── HTML assembly ────────────────────────────────────────────────────────────
 
 def fig_to_html(fig, first=False):
     return fig.to_html(
@@ -706,7 +683,6 @@ def build_html(chart_divs, timestamp, has_compare):
 </html>"""
 
 
-# ── Entry point ──────────────────────────────────────────────────────────────
 
 def generate(output_path: str = OUTPUT_HTML, compare_phase2_csv: str = None) -> None:
     print("[dashboard] Loading evaluation results...")

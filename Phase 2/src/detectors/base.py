@@ -1,12 +1,3 @@
-# src/detectors/base.py
-# ─────────────────────────────────────────────────────────────────────────────
-# THIS IS THE INTEGRATION CONTRACT.
-# Every detector (Persons 3, 4, 5) MUST subclass DetectorBase and implement
-# the three abstract methods below. The harness (Person 6) calls only these
-# three methods — nothing else.
-#
-# Do NOT change this interface without a team-wide discussion.
-# ─────────────────────────────────────────────────────────────────────────────
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field

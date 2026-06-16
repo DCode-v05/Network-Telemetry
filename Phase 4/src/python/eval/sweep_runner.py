@@ -31,7 +31,7 @@ ANOMALY_ORDER = ["spike", "drift", "transient", "periodicity", "real"]
 HERE = os.path.dirname(os.path.abspath(__file__))
 RESULTS = os.path.normpath(os.path.join(HERE, "..", "..", "..", "results"))
 
-_STREAMS = None  # populated per-process by _init_worker
+_STREAMS = None
 
 
 def build_streams(seeds, include_real=True):
@@ -111,7 +111,7 @@ def measure_costs(detnames, windows, ref_len=600, reps=3):
         for w in windows:
             try:
                 c = profile_detector(registry.make_factory(detname, window=w), ref, reps=reps)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 c = {"py_ns_per_sample": float("nan"), "py_ns_p99": float("nan"),
                      "state_bytes": -1, "tracemalloc_bytes": -1, "error": str(e)}
             pyns = c.get("py_ns_per_sample")
@@ -139,8 +139,6 @@ def run_sweep(seeds, windows, include_real=True, n_jobs=None):
           f"{len(streams)} streams = {len(tasks)} runs")
 
     if n_jobs is None:
-        # Cap workers: each spawned process re-imports numpy/pandas, so too many
-        # workers exhaust the Windows commit limit ("paging file too small").
         n_jobs = max(1, min(4, (os.cpu_count() or 2) - 1))
 
     records = _run_serial(tasks, seeds, include_real) if n_jobs == 1 else \
@@ -193,7 +191,6 @@ def main():
 
     runs, cost = run_sweep(seeds, windows, include_real=include_real, n_jobs=args.jobs)
     write_outputs(runs, cost)
-    # console summary: best window per detector by mean VUS-PR
     by_dw, _ = aggregate(runs)
     best = {}
     for r in by_dw:

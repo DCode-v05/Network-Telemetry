@@ -1,4 +1,3 @@
-// Pure helpers that shape the exported aggregated rows into chart-ready data.
 
 export const fmtAnom = (a, labels) => labels?.[a] ?? a;
 
@@ -7,11 +6,8 @@ export function detectorsPresent(rows, order) {
   return order.filter((d) => set.has(d));
 }
 
-// rows for a given window size
 export const atWindow = (rows, w) => rows.filter((r) => r.window_size === w);
 
-// Heatmap matrix as ECharts [colIdx, rowIdx, value] triples.
-// rows = detectors (y), cols = anomaly types (x)
 export function heatmap(rows, metric, w, dets, anomalies) {
   const sub = atWindow(rows, w);
   const data = [];
@@ -27,7 +23,6 @@ export function heatmap(rows, metric, w, dets, anomalies) {
   return { data, max };
 }
 
-// Average a metric across windows, grouped by (detector, anomaly).
 export function meanByDetAnom(rows, metric, dets, anomalies) {
   const acc = {};
   rows.forEach((r) => {
@@ -41,7 +36,6 @@ export function meanByDetAnom(rows, metric, dets, anomalies) {
   }));
 }
 
-// F1 (or any metric) vs window-size lines for a single anomaly type.
 export function metricVsWindow(rows, metric, anomaly, dets, windows) {
   const sub = rows.filter((r) => r.anomaly_type === anomaly);
   return dets.map((d) => ({
@@ -53,7 +47,6 @@ export function metricVsWindow(rows, metric, anomaly, dets, windows) {
   }));
 }
 
-// Latency: average across windows per (detector, anomaly), excluding never-detected (-1).
 export function latency(rows, dets, anomalies) {
   const acc = {};
   rows.forEach((r) => {
@@ -78,7 +71,6 @@ export function latency(rows, dets, anomalies) {
   return out;
 }
 
-// Normalised radar profile per detector across 5 axes.
 export function radar(rows, dets) {
   const COLS = ["f1_mean", "tpr_mean", "precision_mean", "detection_rate", "fpr_mean"];
   const raw = {};
@@ -88,7 +80,7 @@ export function radar(rows, dets) {
       const xs = sub.map((r) => Number(r[c] ?? 0));
       return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
     });
-    vals[4] = 1 - vals[4]; // invert FPR → "Low FPR"
+    vals[4] = 1 - vals[4];
     raw[d] = vals;
   });
   const mins = COLS.map((_, i) => Math.min(...dets.map((d) => raw[d][i])));

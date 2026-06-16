@@ -34,7 +34,7 @@ class EwmaZHold(Detector):
             return 0.0
         sd = sqrt(self.var)
         z = abs(x - self.mu) / (sd + 1e-9)
-        if z < self.threshold:                 # freeze baseline during a suspected anomaly
+        if z < self.threshold:
             diff = x - self.mu
             self.mu += self.alpha * diff
             self.var = (1 - self.alpha) * (self.var + self.alpha * diff * diff)
