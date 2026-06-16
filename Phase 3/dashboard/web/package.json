@@ -1,0 +1,24 @@
+{
+  "name": "phase3-ensemble-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Phase 3 — Two-Layer Ensemble anomaly detection dashboard (React + ECharts).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "export": "python ../export_data.py"
+  },
+  "dependencies": {
+    "echarts": "^5.5.1",
+    "echarts-for-react": "^3.0.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11",
+    "vite-plugin-singlefile": "^2.0.3"
+  }
+}
