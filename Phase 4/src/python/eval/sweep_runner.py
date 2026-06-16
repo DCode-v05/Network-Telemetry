@@ -120,7 +120,8 @@ def measure_costs(detnames, windows, ref_len=600, reps=3):
     return rows
 
 
-METRIC_COLS = ["pr_auc", "vus_pr", "f1", "precision", "recall", "mcc", "pa_f1",
+METRIC_COLS = ["pr_auc", "vus_pr", "f1", "precision", "recall", "event_f1",
+               "event_precision", "event_recall", "event_f1_opt", "mcc", "pa_f1",
                "nab", "nab_low_fp", "detected_frac", "latency", "fp_per_1k"]
 
 

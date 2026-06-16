@@ -45,6 +45,24 @@ SPECS = {
                         "ensemble", ("spike", "drift", "transient", "periodicity"), {}),
     "cascade":         ("tsad.ensembles.cascade",         "Cascade",
                         "ensemble", ("spike", "drift", "transient"), {}),
+    # ---- improved variants (Item 1-3 F1 study): anomaly-aware baseline + confirmation gate
+    "ewma_z_hold":     ("tsad.detectors.ewma_z_hold",     "EwmaZHold",
+                        "statistical", ("spike", "drift"), {}),
+    "ewmv_hold":       ("tsad.detectors.ewmv_hold",       "EwmvHold",
+                        "statistical", ("drift",), {}),
+    "cusum_gated":     ("tsad.ensembles.confirmation_gate", "ConfirmationGate",
+                        "changepoint", ("drift",), {"child": "cusum", "confirm": 2}),
+    "page_hinkley_gated": ("tsad.ensembles.confirmation_gate", "ConfirmationGate",
+                        "changepoint", ("drift",), {"child": "page_hinkley", "confirm": 2}),
+    "ewmv_gated":      ("tsad.ensembles.confirmation_gate", "ConfirmationGate",
+                        "statistical", ("drift",), {"child": "ewmv_adaptive", "confirm": 3}),
+    "ewmv_hold_gated": ("tsad.ensembles.confirmation_gate", "ConfirmationGate",
+                        "statistical", ("drift",), {"child": "ewmv_hold", "confirm": 3}),
+    "acf_gated":       ("tsad.ensembles.confirmation_gate", "ConfirmationGate",
+                        "spectral", ("periodicity",), {"child": "acf_periodicity", "confirm": 3}),
+    # ---- unified all-in-one detector (one 96-byte unit covering all four types) ----
+    "unified":         ("tsad.ensembles.unified", "Unified",
+                        "ensemble", ("spike", "drift", "periodicity", "transient"), {}),
 }
 
 SINGLE = [n for n, s in SPECS.items() if s[2] != "ensemble"]

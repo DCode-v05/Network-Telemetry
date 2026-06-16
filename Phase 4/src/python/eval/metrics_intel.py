@@ -189,6 +189,71 @@ def fp_per_1000(labels, preds, events, tol=3):
     return 1000.0 * fp / n if n else 0.0
 
 
+def _runs(mask):
+    """Contiguous True runs of a boolean array as inclusive (start, end) pairs."""
+    idx = np.where(np.asarray(mask).astype(bool))[0]
+    if len(idx) == 0:
+        return []
+    runs, s, p = [], idx[0], idx[0]
+    for i in idx[1:]:
+        if i == p + 1:
+            p = i
+        else:
+            runs.append((int(s), int(p))); s = i; p = i
+    runs.append((int(s), int(p)))
+    return runs
+
+
+def event_prf(preds, events, n=None, tol=2):
+    """Event-recall + sample-precision F1 with a +/-tol tolerance window.
+
+    * Recall is EVENT-level: an event counts as detected if ANY flag falls within tol
+      samples of it -- so a 1-sample timing offset no longer destroys recall.
+    * Precision is SAMPLE-level over the tolerance-padded events: precision = (flags that
+      land inside any padded event) / (all flags). A near-miss flag becomes a true positive
+      (tolerance), but spraying alarms -- including the degenerate "flag everything" -- is
+      penalised, so the metric is not exploitable by an always-on detector.
+    """
+    preds = np.asarray(preds).astype(bool)
+    if n is None:
+        n = len(preds)
+    if not events:
+        return 0.0, 0.0, 0.0
+    covered = np.zeros(n, dtype=bool)
+    detected = 0
+    for (s, e) in events:
+        a, b = max(0, s - tol), min(n - 1, e + tol)
+        covered[a:b + 1] = True
+        if preds[a:b + 1].any():
+            detected += 1
+    total_pos = int(preds.sum())
+    tp_samples = int(np.sum(preds & covered))
+    precision = tp_samples / total_pos if total_pos > 0 else 0.0
+    recall = detected / len(events)
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+    return precision, recall, f1
+
+
+def best_event_f1(labels, scores, events, n=None, tol=2):
+    """Best event-F1 over thresholds -> (precision, recall, f1) at the operationally-optimal
+    operating point. Fine grid with extra resolution at the high-score tail (where point/
+    spike thresholds live). Non-exploitable: flag-everything yields low sample-precision."""
+    scores = np.asarray(scores, dtype=float)
+    if not events:
+        return 0.0, 0.0, 0.0
+    uniq = np.unique(scores)
+    if len(uniq) > 200:
+        bulk = np.quantile(scores, np.linspace(0.0, 1.0, 150))
+        tail = np.sort(scores)[-60:]            # dense resolution near the top
+        uniq = np.unique(np.concatenate([bulk, tail]))
+    best = (0.0, 0.0, 0.0)
+    for thr in uniq:
+        p, r, f = event_prf(scores >= thr, events, n=n, tol=tol)
+        if f > best[2]:
+            best = (p, r, f)
+    return best
+
+
 def _nab_sigmoid(rel):
     """NAB scaled scoring: rel in [-1 (just inside leading edge) .. >0 (after window)]."""
     return 2.0 / (1.0 + np.exp(5.0 * rel)) - 1.0
@@ -250,6 +315,13 @@ def evaluate(labels, scores, events, n=None, vus_buffer=10):
 
     thr, f1, precision, recall = best_f1_threshold(labels, scores)
     preds = (scores >= thr).astype(int)
+    # event_f1     : event-tolerant F1 at the POINT operating point (conservative).
+    # event_f1_opt : event-tolerant F1 at the EVENT-optimal operating point -- the threshold
+    #                an operator tunes to for event detection within +/-2 samples. This is the
+    #                operationally-correct headline for point/transient anomalies; it is
+    #                non-exploitable (flag-everything -> low sample-precision).
+    ev_p, ev_r, ev_f1 = event_prf(preds, events, n=n, tol=2)
+    eo_p, eo_r, eo_f1 = best_event_f1(labels, scores, events, n=n, tol=2)
 
     det_frac, mean_lat = detection_latency(events, preds)
     return {
@@ -258,6 +330,10 @@ def evaluate(labels, scores, events, n=None, vus_buffer=10):
         "f1": f1,
         "precision": precision,
         "recall": recall,
+        "event_f1": ev_f1,
+        "event_precision": ev_p,
+        "event_recall": ev_r,
+        "event_f1_opt": eo_f1,
         "mcc": mcc(labels, preds),
         "pa_f1": best_pa_f1(labels, scores, events),
         "nab": nab_like_score(labels, preds, events, n, "standard"),

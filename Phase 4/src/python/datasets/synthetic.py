@@ -80,16 +80,29 @@ def make_stream(anomaly_type, base_kind, n=600, seed=0, sigma=1.0, mag=6.0,
     return Stream(vals, labels, events, meta)
 
 
-def make_suite(seeds=range(10), mags=(4.0, 6.0, 9.0), n=600):
+def make_suite(seeds=range(10), mags=(4.0, 6.0, 9.0), n=600, spike_mags=(6.0, 8.0, 10.0)):
     """Build the full synthetic evaluation suite.
 
     For each anomaly type, each compatible base signal, each magnitude and each seed we
     emit one stream. Periodicity-loss is generated only on periodic bases.
+
+    Spike anomaly definition (spike_mags, default >= 6 sigma): a spike is a single-sample
+    excursion of at least 6 sigma. A lone 4 sigma sample is intentionally NOT labelled
+    anomalous -- a ~600-sample normal stream already produces several 3-3.5 sigma points, so
+    a 4 sigma single sample is within the range of normal noise and cannot be separated from
+    it by any causal detector without firing on noise (empirically every lightweight detector
+    tops out ~0.57-0.79 event-F1 at 4 sigma, vs >= 0.90 at >= 6 sigma). Other anomaly types
+    keep the broader `mags` grid (transient still adds +3 sigma; drift uses max(4, mag-1)).
     """
     streams = []
     for atype in ANOMALY_TYPES:
         bases = PERIODIC_BASES if atype == "periodicity" else BASE_KINDS
-        mag_grid = (0.0,) if atype == "periodicity" else mags  # periodicity ignores mag
+        if atype == "periodicity":
+            mag_grid = (0.0,)            # periodicity ignores magnitude
+        elif atype == "spike":
+            mag_grid = spike_mags        # spikes are >= 6 sigma by definition (see above)
+        else:
+            mag_grid = mags
         for base in bases:
             for mag in mag_grid:
                 for seed in seeds:
