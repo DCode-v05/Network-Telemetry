@@ -2,7 +2,7 @@
 
 ## Project Description
 
-This project investigates lightweight, on-device anomaly detection algorithms for real-time network telemetry on HPE Aruba switches. By streaming network metrics through a fixed-size sliding window and evaluating six statistical detectors — and now a two-layer ensemble of those detectors — against four classes of injected anomalies, the system identifies which algorithms deliver the best accuracy, latency, and memory profile within the strict resource budget of an ARM-class control plane processor. Phase 1 delivered a theoretical study of fifteen candidate algorithms; Phase 2 empirically benchmarked the six finalists on real CESNET ISP traffic and produced an interactive HTML dashboard summarising the results; Phase 3 builds a confirmation-gated two-layer ensemble on top of those finalists and re-benchmarks against Phase 2 row-for-row.
+This project investigates lightweight, on-device anomaly detection algorithms for real-time network telemetry on HPE Aruba switches. By streaming network metrics through a fixed-size sliding window and evaluating six statistical detectors — and now a two-layer ensemble of those detectors — against four classes of injected anomalies, the system identifies which algorithms deliver the best accuracy, latency, and memory profile within the strict resource budget of an ARM-class control plane processor. Phase 1 delivered a theoretical study of fifteen candidate algorithms; Phase 2 empirically benchmarked the six finalists on real CESNET ISP traffic and produced an interactive HTML dashboard summarising the results; Phase 3 builds a confirmation-gated two-layer ensemble on top of those finalists and re-benchmarks against Phase 2 row-for-row. **Phase 4 is the production phase**: a self-contained, end-to-end product that builds twelve streaming detectors (nine single + three combined), evaluates them across synthetic **and** real (NAB) telemetry on **both** detection accuracy **and** real measured CPU/memory cost — every detector has a parity-verified **C twin** — then selects the best under the on-device budget, recommending `deriv` (first-difference z-score) in a tiered condition→algorithm deployment.
 
 ---
 
@@ -128,6 +128,38 @@ Full Phase 3 reference: [`Phase 3/docs/PHASE_3_DOCUMENTATION.md`](Phase%203/docs
 
 ---
 
+## Phase 4 — Production Build: Both Intelligence and Lightweight, with a C Twin
+
+Phase 4 is the production phase. It is a **self-contained, end-to-end product** that builds a fresh field of **12 streaming detectors** (9 single + 3 combined), evaluates them across **synthetic + real (NAB) telemetry over 9,552 runs**, on **both** detection quality (intelligence) **and** real measured **CPU/memory cost** (lightweight), then selects the best under a hard on-device budget gate. Unlike Phases 2–3 (Python-only timing), every Phase 4 detector ships a **portable C twin** that is parity-verified against the Python reference (≤ 1e-4) and benchmarked for true per-sample latency and byte footprint.
+
+### Candidate detectors
+
+- **Single (9):** `ewma_z`, `robust_z` (median+MAD), `hampel`, `cusum`, `page_hinkley`, `ewmv_adaptive` (EWMA control chart), `deriv` (first-difference), `acf_periodicity` (lag-k autocorrelation drop), `heavy_baseline` (deliberately heavy — included to demonstrate short-window/cost failure).
+- **Combined (3):** `layered` (EWMA→CUSUM OR-fusion), `voting` (4-member soft vote), `cascade` (cheap EWMA pre-filter gates an expensive robust confirm).
+
+### Evaluation
+
+- **Datasets:** synthetic generators injecting the four anomaly types (spike, drift, periodicity loss, transient) at magnitudes {4, 6, 9}σ × 5 seeds = 185 streams, **plus 14 real NAB streams** (realTraffic + realKnownCause) — 199 streams total.
+- **Intelligence metrics:** PR-AUC, **VUS-PR** (threshold-free headline), F1 / precision / recall / MCC, point-adjusted F1 (with caveat), a NAB-like early-detection score, detection latency, false-positives per 1000.
+- **Lightweight metrics:** measured **C** ns/sample (QueryPerformanceCounter) + float32 state bytes (`tsad_state_bytes`), a Python cross-check, and an ARM-cycle projection. **Budget is a hard gate** (< 100 µs / < 100 bytes).
+
+### Headline results
+
+- **Recommended: `deriv` (first-difference z-score), window 50** — 4.9 ns/sample, 20 bytes, near-zero latency, and **Pareto-dominant** (cheapest *and* most accurate overall). F1 = 0.665.
+- **Condition → algorithm** (each winner matches its design intent): drift → `ewmv_adaptive` (F1 0.84); periodicity → `acf_periodicity` (F1 0.87); spike/transient → `deriv` (F1 0.71 / 0.74). Condition-matched mean F1 ≈ 0.79.
+- **Cost finding:** every detector is < 100 µs/sample (worst 2.0 µs) — so **memory, not time, is the binding constraint**; window-buffer detectors break 100 bytes past ~window 22, while O(1) detectors fit at any window and are also the most window-robust.
+
+### What Phase 4 adds over Phases 2–3
+
+- A real **C on-device implementation** with measured cost (not just Python timing).
+- Selection on **both axes at once** (intelligence × lightweight) via a Pareto/scorecard with a hard budget gate.
+- **Threshold-free, imbalance-aware metrics** (VUS-PR) and an explicit condition→algorithm map.
+- A pipeline that depends only on **numpy + the Python standard library (no pandas)**, so it runs on memory-constrained hosts.
+
+Full Phase 4 reference: [`Phase 4/report/Phase4_Report.md`](Phase%204/report/Phase4_Report.md); quick start and layout: [`Phase 4/README.md`](Phase%204/README.md).
+
+---
+
 ## Tech Stack
 
 **Backend / analysis**
@@ -139,11 +171,16 @@ Full Phase 3 reference: [`Phase 3/docs/PHASE_3_DOCUMENTATION.md`](Phase%203/docs
 - pytest
 - jupyter, tqdm
 
+**On-device twin (Phase 4)**
+
+- C (C99) compiled with **MinGW-w64 / gcc** — portable streaming detector library, parity-verified against the Python reference and benchmarked (cycles, bytes)
+- Phase 4 analysis depends only on **numpy + the Python standard library (no pandas)** so it runs on memory-constrained hosts; matplotlib is used only for the report figures
+
 **Dashboards (front-end)**
 
 - Node.js 18+ / npm
 - React 18 + Vite
-- Apache ECharts (`echarts-for-react`)
+- Apache ECharts (`echarts-for-react`; Phase 4 uses `echarts` directly)
 - `vite-plugin-singlefile` (self-contained build)
 
 ---
@@ -226,6 +263,28 @@ pytest tests/ -v                                                               #
 
 Outputs: `Phase 3/results/csv/aggregated_results.csv` (224 rows), `Phase 3/results/csv/raw_trial_results.csv` (6,720 rows), `Phase 3/results/dashboard.html`.
 
+### 7. Run Phase 4 (production build + C twin)
+
+Phase 4 is self-contained (its own synthetic generators + auto-downloaded NAB data; no CESNET dependency). One-time prerequisites: `pip install numpy matplotlib pytest`, **MinGW-w64 (gcc)**, Node + npm. From the repository root:
+
+```powershell
+# one-shot end-to-end: data -> sweep -> C build/bench -> selection -> figures -> dashboard sync -> tests
+powershell -NoProfile -File "Phase 4\scripts\run_all.ps1"
+
+# or stage by stage (from Phase 4\src\python)
+python -m eval.sweep_runner            # evaluation sweep -> results/
+python -m selection.select             # choose the best -> results/selection.json
+python -m eval.figures                 # report figures -> report/figures/
+python -m cli.stream_demo --detector deriv --window 50 --synthetic spike
+
+# C twin + dashboard
+powershell -NoProfile -File "Phase 4\src\c\build.ps1"   # -> parity.exe, bench.exe
+cd "Phase 4\dashboard"; npm install; npm run build      # or: npm run dev
+python -m pytest "Phase 4\tests" -q                     # 57 tests (contract, budget gate, C<->Python parity)
+```
+
+Outputs: `Phase 4/results/selection.json` (the recommendation), `Phase 4/results/c_cost.csv` (measured C cost), `Phase 4/report/Phase4_Report.md`, and the built dashboard under `Phase 4/dashboard/dist/`.
+
 ---
 
 ## Usage
@@ -255,6 +314,11 @@ Outputs: `Phase 3/results/csv/aggregated_results.csv` (224 rows), `Phase 3/resul
 | Phase 2 → Phase 3 Bridge    | sys.path shim + Phase 2 re-exports (config, detectors, harness)   | `Phase 3/_phase2_bridge.py`                                                                     | 3     |
 | Phase 3 Evaluation Harness   | Ensemble sweep, gate-FP-reduction & ensemble-vs-best metrics      | `Phase 3/evaluation/harness.py`, `Phase 3/evaluation/phase3_metrics.py`, `Phase 3/main.py`  | 3     |
 | Phase 3 Dashboard            | Plotly HTML report incl. Phase 2 ↔ Phase 3 comparison figure     | `Phase 3/dashboard/generate_report.py`                                                          | 3     |
+| Phase 4 Detector Library     | 9 single + 3 ensemble streaming detectors (Python reference)      | `Phase 4/src/python/tsad/` (`core/base.py`, `detectors/`, `ensembles/`, `registry.py`)          | 4     |
+| Phase 4 C Twin               | Portable C99 on-device detectors, parity-verified, benchmarked    | `Phase 4/src/c/tsad.c`, `Phase 4/src/c/parity.c`, `Phase 4/src/c/bench.c`                        | 4     |
+| Phase 4 Datasets             | Synthetic generators + injectors + real NAB loaders               | `Phase 4/src/python/datasets/`                                                                    | 4     |
+| Phase 4 Evaluation/Selection | Sweep, intelligence + lightweight metrics, Pareto/scorecard, map  | `Phase 4/src/python/eval/`, `Phase 4/src/python/selection/`                                       | 4     |
+| Phase 4 Dashboard            | React + Vite + ECharts (accuracy-vs-window, Pareto, cost/budget)  | `Phase 4/dashboard/`                                                                              | 4     |
 
 **Integration contract:** every detector — Phase 2 individuals and Phase 3 ensemble classes alike — implements `Phase 2/src/detectors/base.py::DetectorBase`, and every consumer uses `Phase 2/src/pipeline/window_buffer.py`. These interfaces are the stable seam between modules. Phase 2's 89+ tests and Phase 3's 48 tests (incl. parametrised base-contract checks across all four ensemble classes) enforce the contract end-to-end.
 
@@ -338,6 +402,24 @@ Network-Telementry/
 │   └── results/
 │       ├── csv/                              # 14 detectors × 4 anomalies × 4 windows = 224 rows
 │       └── dashboard.html                    # Plotly report with phase 2↔3 comparison
+│
+├── Phase 4/                                  # Production build: both intelligence + lightweight, C twin
+│   ├── src/python/tsad/                      # Detector library (Python reference)
+│   │   ├── core/                             # base.py (Detector contract), ring_buffer.py, stats.py
+│   │   ├── detectors/                        # 9 single detectors (ewma_z, deriv, cusum, acf_periodicity, …)
+│   │   ├── ensembles/                        # layered, voting, cascade
+│   │   └── registry.py                       # name -> detector contract (single source of truth)
+│   ├── src/python/datasets/                  # synthetic generators + injectors + NAB loaders
+│   ├── src/python/eval/                      # metrics_intel, profile_cost, sweep_runner, figures (numpy + stdlib)
+│   ├── src/python/selection/                 # scorecard, pareto, mapping, select
+│   ├── src/python/cli/stream_demo.py         # stream a CSV through any detector -> live alerts
+│   ├── src/c/                                # portable C99 twin: tsad.c/.h + parity.c + bench.c + build.ps1
+│   ├── dashboard/                            # React + Vite + ECharts (reads results JSON)
+│   ├── data/                                 # synthetic (generated) + real NAB (downloaded)
+│   ├── results/                              # runs.csv, cost.csv, c_cost.csv, selection.json, metrics.json
+│   ├── report/Phase4_Report.md               # answers all six problem-statement questions
+│   ├── tests/                                # contract, budget gate, C<->Python parity (57 tests)
+│   └── scripts/run_all.ps1                   # one-shot end-to-end pipeline
 │
 └── README.md                                 # This file
 ```

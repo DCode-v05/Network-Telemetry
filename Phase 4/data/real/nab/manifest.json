@@ -1,0 +1,20 @@
+{
+  "ok": [
+    "realTraffic/occupancy_6005.csv",
+    "realTraffic/occupancy_t4013.csv",
+    "realTraffic/speed_6005.csv",
+    "realTraffic/speed_7578.csv",
+    "realTraffic/speed_t4013.csv",
+    "realTraffic/TravelTime_387.csv",
+    "realTraffic/TravelTime_451.csv",
+    "realKnownCause/ec2_request_latency_system_failure.csv",
+    "realKnownCause/machine_temperature_system_failure.csv",
+    "realKnownCause/cpu_utilization_asg_misconfiguration.csv",
+    "realKnownCause/ambient_temperature_system_failure.csv",
+    "realKnownCause/nyc_taxi.csv",
+    "realKnownCause/rogue_agent_key_hold.csv",
+    "realKnownCause/rogue_agent_key_updown.csv"
+  ],
+  "failed": [],
+  "source": "numenta/NAB@master"
+}
