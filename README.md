@@ -100,8 +100,8 @@ These figures come from the committed Phase 4 results (`results/selection.json`,
 ### Installation
 
 ```bash
-git clone https://github.com/DCode-v05/Network-Telementry.git
-cd Network-Telementry
+git clone https://github.com/DCode-v05/Network-Telemetry.git
+cd Network-Telemetry
 
 # Phase 2 environment
 cd "Phase 2"
@@ -150,7 +150,7 @@ python -m cli.stream_demo --detector deriv --window 50 --synthetic spike
 ## Project Structure
 
 ```
-Network-Telementry/
+Network-Telemetry/
 ├── Phase 1/                          # Algorithm study (theory) + evaluation criteria spec
 │   ├── Algorithm_Study_Document.md   # 15 candidates analysed, 6 finalists, 9 rejected
 │   └── HPE_Evaluation_Criteria_Specification.md
