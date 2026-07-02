@@ -156,6 +156,15 @@ a { color: inherit; text-decoration: none; }
 select.sel { background: var(--bg-elevated); color: var(--fg); border: 1px solid var(--border-strong); border-radius: 8px; padding: 8px 12px; font-family: var(--font-sans); font-size: 13.5px; cursor: pointer; }
 select.sel:focus { outline: none; border-color: var(--accent); }
 
+.ip-field { display: inline-flex; align-items: center; gap: 8px; background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: 9px; padding: 4px 6px 4px 12px; transition: border-color .12s, box-shadow .12s; }
+.ip-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+.ip-field .ip-ico { color: var(--fg-subtle); display: grid; place-items: center; }
+.ip-field input { border: none; outline: none; background: transparent; color: var(--fg); font-family: var(--font-mono); font-size: 14px; letter-spacing: 0.03em; width: 128px; padding: 5px 0; }
+.ip-field input::placeholder { color: var(--fg-subtle); letter-spacing: 0; }
+.ip-field .ping-btn { border: none; background: var(--fg); color: var(--bg); font-family: var(--font-sans); font-weight: 600; font-size: 12.5px; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: opacity .12s; }
+.ip-field .ping-btn:hover { opacity: 0.85; }
+.ip-field .ping-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
 input[type=range] { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 3px; background: var(--border-strong); outline: none; width: 150px; }
 input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid var(--bg); box-shadow: var(--shadow); }
 

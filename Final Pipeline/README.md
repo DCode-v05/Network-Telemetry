@@ -113,6 +113,19 @@ The Live Pipeline can execute the detector in three languages:
   auto-detects it. All three engines produce identical scores (parity Δ = 0), and
   the UI shows the real per-engine execution time.
 
+### Live device / network telemetry
+Besides the bundled datasets, the Live Pipeline can capture **real telemetry** (via
+`server.py`, which the browser can't do directly). Both sources stream
+**continuously until you press Stop**:
+- **My device** — samples the device's **network throughput** (KB/s, from `netstat`
+  byte-counter deltas) and runs the detector on it live.
+- **Custom IPv4** — type any IPv4, hit **Check ping**; if it's reachable, it captures
+  the **ping round-trip latency** (ms) to that host sample-by-sample (a dropped packet
+  shows up as a latency spike). IPv4 is validated server-side.
+Live data has no ground-truth labels, so the readout shows current score / alerts /
+alert-rate / peak instead of recall/F1. Any engine (JS/Python/C) scores it.
+Endpoints: `/api/ping`, `/api/sample?source=device|ip` (one live sample), `/api/run_values`.
+
 ## Requirements
 - **Python 3.10+** with **numpy** (the only third-party dep). `--plot` optionally uses matplotlib (skipped if absent).
 - **C:** MinGW-w64 gcc (`build.ps1` pins the WinLibs UCRT path — edit `$mingw` if yours differs).
