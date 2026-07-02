@@ -22,6 +22,7 @@ void unified_reset(UnifiedDetector *d)
     int i;
     d->n = 0;
     d->last_score = 0.0;
+    d->s_drv = d->s_drift = d->s_per = 0.0;
     for (i = 0; i < UNIFIED_BUF_LEN; i++)
         d->buf[i] = 0.0;
     d->head = 0;
@@ -97,6 +98,7 @@ double unified_update(UnifiedDetector *d, double x)
         d->z = x;
         d->mu = x;
         d->last_score = 0.0;
+        d->s_drv = d->s_drift = d->s_per = 0.0;
         return 0.0;
     }
 
@@ -169,6 +171,9 @@ double unified_update(UnifiedDetector *d, double x)
         score = s_per;
     if (!warm)
         score = 0.0;
+    d->s_drv = s_drv;
+    d->s_drift = s_drift;
+    d->s_per = s_per;
     d->last_score = score;
     return score;
 }

@@ -41,17 +41,24 @@ Final Pipeline/
 │   ├── parity_check.c        # asserts C scores == Python scores (PASS/FAIL, max |Δ|)
 │   ├── parity_gen.py         # writes the parity fixture from the Python reference
 │   ├── bench.c               # measured ns/sample + budget gate (state_bytes<100, time<100µs)
+│   ├── score_cli.c           # stdin values -> scores (the C engine the server invokes)
 │   ├── collect_c_results.py  # runs the exes -> results/c_results.json (for the dashboard)
-│   └── build.ps1             # compile + parity + bench (MinGW-w64 gcc -O2 -std=c99)
+│   └── build.ps1             # compile parity + bench + score_cli (MinGW-w64 gcc -O2 -std=c99)
 ├── data/
 │   ├── synthetic_demo.csv    # generated: all 4 anomaly types with known labels
 │   └── nab_streams/          # 3 real labelled NAB CSVs + combined_windows.json
 ├── results/                  # generated: synthetic_results.json, nab_results.json, c_results.json
-├── dashboard/                # React + Vite + ECharts LIVE UI: pick an input, stream it in-browser
+├── dashboard/                # React + Vite + ECharts multi-page app (Vercel theme, dual light/dark)
+│   ├── src/pages/            #   Overview · Problem&Theory · Architecture · Live Pipeline · Evaluation · Source
 │   └── src/lib/unified.js     #   the detector ported to JS (parity-verified) — runs live in the browser
-├── run_all.ps1               # one-shot: data -> Python demo -> C build+verify -> collect -> sync
+├── server.py                 # engine server (stdlib) for the Live Pipeline's Python/C engines
+├── run_all.ps1               # one-shot: data -> Python demo -> C build+verify -> collect -> exports -> sync
 └── README.md
 ```
+
+The `python/` folder also has three dashboard exporters: `export_streams.py` (raw
+streams for the live page), `export_eval.py` (the 40-detector cross-phase catalogue),
+and `export_source.py` (the Python/C/JS source for the code viewer).
 
 ## Quick start
 
@@ -79,21 +86,32 @@ python python\run_demo.py --input data\synthetic_demo.csv --threshold 0.9 --plot
 powershell -NoProfile -File c\build.ps1
 python c\collect_c_results.py                # -> results/c_results.json
 
-# 4. live dashboard (detector runs in-browser, one sample at a time)
-python python\export_streams.py                 # raw streams -> dashboard/public/data/streams.json
+# 4. dashboard data + launch
+python python\export_streams.py                 # raw streams -> live page
+python python\export_eval.py                     # 40-detector catalogue -> Evaluation page
+python python\export_source.py                   # Python/C/JS source -> Source page
 powershell -NoProfile -File dashboard\sync_data.ps1
-cd dashboard ; npm install ; npm run dev        # pick an input, hit ▶ stream
+cd dashboard ; npm install ; npm run dev        # open http://localhost:5173/
 ```
 
-### The live dashboard
-An oscilloscope-style instrument: **select an input** (synthetic all-4-types or a
-real NAB stream), hit **▶ stream**, and watch the detector process it **live, one
-sample at a time** — value + score traces draw in real time, alerts fire, the
-three **detector-head VU meters** light up to show which head caught each anomaly,
-and TPR/FPR/F1/latency update continuously. **Transport** (play/pause/reset/speed),
-a **threshold slider** (watch precision vs recall trade off live), and a **window**
-selector are all interactive. The in-browser detector is the JS twin, parity-verified
-to the Python/C reference (Δ = 0).
+### The dashboard (multi-page explainer)
+A production-grade **Vercel-themed** app (Geist Sans + Geist Mono, **dual light/dark**
+that defaults to the browser setting) with a sidebar and six pages:
+
+- **Overview** — headline numbers and quick nav.
+- **Problem & Theory** — the on-device constraint (< 100 µs / < 100 B / 10–50 samples) and the four anomaly types explained with sparklines.
+- **Architecture** — the unified detector diagram: three heads, the shared 96-byte state, and exactly which head detects which anomaly.
+- **Live Pipeline** — pick an input **and an engine (JS / Python / C)**, hit **▶ stream**, and watch the detector process it **one sample at a time**: value+score traces draw live, alerts fire, the **three head VU meters** light up to show which head caught each anomaly, and recall/FPR/F1/latency update continuously. Transport, threshold slider, and window are interactive.
+- **Evaluation** — the **40 detectors across Phase 2/3/4**, with a sortable Phase 4 leaderboard, the intelligence-vs-cost budget gate, the condition→algorithm map, and **why `unified` was chosen** (highest budget-passing VUS-PR, all four types, 96 B).
+
+### Live Pipeline engines (JS / Python / C)
+The Live Pipeline can execute the detector in three languages:
+- **JS** runs entirely in the browser (no setup) — the parity-verified JS twin.
+- **Python** and **C** run on a tiny local **engine server** (`server.py`, Python
+  stdlib only): Python imports the real detector; C pipes the signal through the
+  compiled `score_cli.exe`. Start it with `python server.py` (port 8008); the UI
+  auto-detects it. All three engines produce identical scores (parity Δ = 0), and
+  the UI shows the real per-engine execution time.
 
 ## Requirements
 - **Python 3.10+** with **numpy** (the only third-party dep). `--plot` optionally uses matplotlib (skipped if absent).

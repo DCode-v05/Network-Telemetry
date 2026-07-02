@@ -1,9 +1,9 @@
 {
   "name": "unified-detector-dashboard",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
-  "description": "Dashboard for the standalone unified on-device anomaly detector (synthetic + NAB + C twin evidence).",
+  "description": "Multi-page explainer + live demo for the unified on-device anomaly detector.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -11,8 +11,10 @@
   },
   "dependencies": {
     "echarts": "^5.5.1",
+    "highlight.js": "^11.10.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

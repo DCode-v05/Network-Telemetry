@@ -92,6 +92,9 @@ class UnifiedDetector:
         """Allocate/zero all streaming state (call once; also called by __init__)."""
         self.n = 0
         self.last_score = 0.0
+        self.s_drv = 0.0      # last per-head normalised scores (for introspection / VU display)
+        self.s_drift = 0.0
+        self.s_per = 0.0
         self.buf = RingBuffer(self.BUF_LEN)
         self.period = 0
         self.r_ref = 0.0
@@ -136,6 +139,7 @@ class UnifiedDetector:
             self.z = x
             self.mu = x
             self.last_score = 0.0
+            self.s_drv = self.s_drift = self.s_per = 0.0
             return 0.0
 
         # shared windowed mean / variance (used by drift + periodicity heads)
@@ -197,6 +201,7 @@ class UnifiedDetector:
             score = s_per
         if not warm:
             score = 0.0
+        self.s_drv, self.s_drift, self.s_per = s_drv, s_drift, s_per
         self.last_score = score
         return score
 

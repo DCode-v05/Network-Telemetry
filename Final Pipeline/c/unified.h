@@ -51,6 +51,7 @@ typedef struct {
     int    head, count;
 
     double last_score;
+    double s_drv, s_drift, s_per;   /* last per-head normalised scores (introspection) */
 } UnifiedDetector;
 
 void   unified_init(UnifiedDetector *d, int window);

@@ -26,7 +26,8 @@ New-Item -ItemType Directory -Force -Path $build | Out-Null
 Write-Host "[1/4] compiling ..." -ForegroundColor Cyan
 gcc -O2 -std=c99 -Wall (Join-Path $here 'unified.c') (Join-Path $here 'parity_check.c') -o (Join-Path $build 'parity_check.exe')
 gcc -O2 -std=c99 -Wall (Join-Path $here 'unified.c') (Join-Path $here 'bench.c')         -o (Join-Path $build 'bench.exe')
-Write-Host "      built parity_check.exe, bench.exe"
+gcc -O2 -std=c99 -Wall (Join-Path $here 'unified.c') (Join-Path $here 'score_cli.c')     -o (Join-Path $build 'score_cli.exe')
+Write-Host "      built parity_check.exe, bench.exe, score_cli.exe"
 
 # 3. parity fixture from the Python reference
 Write-Host "[2/4] generating parity fixture (python parity_gen.py) ..." -ForegroundColor Cyan
