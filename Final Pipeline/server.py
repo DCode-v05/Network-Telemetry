@@ -162,6 +162,84 @@ def capture_device(n, interval=0.12):
 
 
 # ---------------------------------------------------------------------------
+# stateful live sessions: gap-free sampling + INCREMENTAL scoring (low latency)
+# ---------------------------------------------------------------------------
+
+_SESSIONS = {}
+
+
+class LiveSession:
+    """One live capture: holds a persistent detector + standardizer (so each new
+    sample is scored incrementally, not by re-running the whole series) and, for
+    the device, the last byte counter (so throughput is the delta since the last
+    poll — no in-request sleep, no dead time)."""
+
+    def __init__(self, source, ip, window, lang):
+        self.source = source
+        self.ip = ip
+        self.window = window
+        self.lang = lang if lang in ("js", "python", "c") else "python"
+        if self.lang == "c" and not os.path.exists(C_EXE):
+            self.lang = "python"
+        self.std = CausalStandardizer()
+        self.det = UnifiedDetector(window=window) if self.lang == "python" else None
+        self.proc = None
+        self.dev_last = None      # (bytes, perf_counter)
+        self.last_access = time.time()
+        if self.lang == "c":
+            self.proc = subprocess.Popen([C_EXE, str(window)], stdin=subprocess.PIPE,
+                                         stdout=subprocess.PIPE, text=True, bufsize=1)
+
+    def _raw(self):
+        if self.source == "ip":
+            ok, rtt = ping_once(self.ip)
+            return rtt if (ok and rtt is not None) else 1000.0
+        now = time.perf_counter()
+        cur = _netstat_total_bytes()
+        if self.dev_last is None or cur is None:
+            self.dev_last = (cur, now)
+            return 0.0
+        lb, lt = self.dev_last
+        dt = now - lt
+        self.dev_last = (cur, now)
+        return round(max(0.0, (cur - lb) / 1024.0 / dt), 3) if dt > 0 else 0.0
+
+    def step(self):
+        """Capture one sample, feed it to the persistent detector, return (value, score, heads).
+        For lang=js the browser scores, so score/heads are None."""
+        v = self._raw()
+        fed = self.std.push(float(v))
+        if self.lang == "python":
+            s = self.det.update(fed)
+            return v, round(s, 6), [round(self.det.s_drv, 5), round(self.det.s_drift, 5), round(self.det.s_per, 5)]
+        if self.lang == "c":
+            self.proc.stdin.write(repr(float(fed)) + "\n")
+            self.proc.stdin.flush()
+            parts = self.proc.stdout.readline().split()
+            if len(parts) >= 4:
+                return v, float(parts[0]), [float(parts[1]), float(parts[2]), float(parts[3])]
+            return v, 0.0, [0.0, 0.0, 0.0]
+        return v, None, None
+
+    def close(self):
+        if self.proc:
+            try:
+                self.proc.stdin.close()
+            except Exception:
+                pass
+            try:
+                self.proc.terminate()
+            except Exception:
+                pass
+
+
+def _reap_sessions(ttl=30):
+    now = time.time()
+    for sid in [s for s in _SESSIONS if now - _SESSIONS[s].last_access > ttl]:
+        _SESSIONS.pop(sid).close()
+
+
+# ---------------------------------------------------------------------------
 # HTTP
 # ---------------------------------------------------------------------------
 
@@ -244,6 +322,39 @@ class Handler(BaseHTTPRequestHandler):
                 vals, unit, cap = capture_device(n)
                 return self._send(200, {"ok": True, "source": "device", "ip": local_ip(), "unit": unit,
                                         "n": len(vals), "capture_ms": round(cap), "values": vals})
+
+            if u.path == "/api/live/start":
+                _reap_sessions()
+                source = q.get("source", ["device"])[0]
+                lang = q.get("lang", ["python"])[0]
+                window = int(q.get("window", ["24"])[0])
+                ip = q.get("ip", [""])[0].strip()
+                if source == "ip":
+                    try:
+                        ipaddress.IPv4Address(ip)
+                    except Exception:
+                        return self._send(400, {"ok": False, "error": "not a valid IPv4 address"})
+                sid = os.urandom(6).hex()
+                sess = LiveSession(source, ip, window, lang)
+                _SESSIONS[sid] = sess
+                return self._send(200, {"ok": True, "session": sid, "lang": sess.lang,
+                                        "unit": "ms" if source == "ip" else "KB/s", "device_ip": local_ip()})
+
+            if u.path == "/api/live/next":
+                sid = q.get("session", [""])[0]
+                sess = _SESSIONS.get(sid)
+                if not sess:
+                    return self._send(404, {"ok": False, "error": "no such session"})
+                sess.last_access = time.time()
+                v, score, hd = sess.step()
+                return self._send(200, {"ok": True, "value": v, "score": score, "heads": hd})
+
+            if u.path == "/api/live/stop":
+                sid = q.get("session", [""])[0]
+                sess = _SESSIONS.pop(sid, None)
+                if sess:
+                    sess.close()
+                return self._send(200, {"ok": True})
 
             return self._send(404, {"error": "not found"})
         except Exception as e:  # noqa: BLE001

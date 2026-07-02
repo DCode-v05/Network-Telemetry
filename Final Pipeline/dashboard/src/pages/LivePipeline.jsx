@@ -51,12 +51,13 @@ function Engine({ streams, cRes, theme }) {
 
   const scores = useRef([]), heads = useRef([]), iRef = useRef(0)
   const liveValues = useRef([]), loopActive = useRef(false)
+  const sessionRef = useRef(null), liveDet = useRef(null), liveStd = useRef(null)
   const engineRef = useRef(engine), windowRef = useRef(window_), ipRef = useRef(ipInput), sourceRef = useRef(stream.source)
   useEffect(() => { engineRef.current = engine }, [engine])
   useEffect(() => { windowRef.current = window_ }, [window_])
   useEffect(() => { ipRef.current = ipInput }, [ipInput])
   useEffect(() => { sourceRef.current = stream.source }, [selId, stream.source])
-  useEffect(() => () => { loopActive.current = false }, [])
+  useEffect(() => () => { loopActive.current = false; const sid = sessionRef.current; if (sid) fetch(`${ENGINE_URL}/api/live/stop?session=${sid}`).catch(() => {}) }, [])
 
   const dispValues = isLive ? liveValues.current : stream.values
   const N = isLive ? liveLen : stream.values.length
@@ -72,12 +73,21 @@ function Engine({ streams, cRes, theme }) {
 
   // stop any capture + clear live state on input change
   useEffect(() => {
-    loopActive.current = false; setCapturing(false)
+    stopCapture()
     liveValues.current = []; scores.current = []; heads.current = []; iRef.current = 0
     setLiveLen(0); setIdx(0); setLiveMeta(null); setPing(null); setPlaying(false)
     setWindow(stream.window || 24); setThreshold(stream.defaultThreshold)
     // eslint-disable-next-line
   }, [selId])
+
+  // changing engine or window during a live capture needs a fresh session
+  useEffect(() => {
+    if (!isLive) return
+    stopCapture()
+    liveValues.current = []; scores.current = []; heads.current = []; iRef.current = 0
+    setLiveLen(0); setIdx(0)
+    // eslint-disable-next-line
+  }, [engine, window_])
 
   // prepare KNOWN streams (synthetic/NAB)
   useEffect(() => {
@@ -111,13 +121,6 @@ function Engine({ streams, cRes, theme }) {
     for (const x of values) { const fed = std ? std.push(x) : x; const r = det.update(fed); sc.push(r.score); hd.push(r) }
     scores.current = sc; heads.current = hd
   }
-  async function scoreServer(values, win, lang) {
-    const rr = await fetch(`${ENGINE_URL}/api/run_values`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ values, window: win, lang, standardize: true }) }).then((r) => r.json())
-    if (rr.error) throw new Error(rr.error)
-    scores.current = rr.scores
-    heads.current = rr.heads.map((h) => ({ score: 0, sDrv: h[0], sDrift: h[1], sPer: h[2] }))
-  }
-
   // reveal-only animation loop (KNOWN streams)
   useEffect(() => {
     if (!playing) return
@@ -130,17 +133,21 @@ function Engine({ streams, cRes, theme }) {
     return () => clearInterval(id)
   }, [playing, speedIdx, N])
 
-  // ---- continuous live capture ----
+  // ---- continuous live capture (server session: gap-free sampling + incremental scoring) ----
   async function captureTick() {
     if (!loopActive.current) return
     try {
-      const src = sourceRef.current
-      const q = src === 'ip' ? `source=ip&ip=${encodeURIComponent(ipRef.current.trim())}` : 'source=device'
-      const r = await fetch(`${ENGINE_URL}/api/sample?${q}`).then((x) => x.json())
+      const r = await fetch(`${ENGINE_URL}/api/live/next?session=${sessionRef.current}`).then((x) => x.json())
       if (!r.ok) throw new Error(r.error || 'capture failed')
       liveValues.current.push(r.value)
-      if (engineRef.current === 'js') scoreLocal(liveValues.current, windowRef.current, true)
-      else await scoreServer(liveValues.current, windowRef.current, engineRef.current)
+      if (r.score == null) {                       // js: browser scores this sample incrementally
+        const fed = liveStd.current.push(r.value)
+        const rr = liveDet.current.update(fed)
+        scores.current.push(rr.score); heads.current.push(rr)
+      } else {                                      // python/c: server already scored it
+        scores.current.push(r.score)
+        heads.current.push({ score: 0, sDrv: r.heads[0], sDrift: r.heads[1], sPer: r.heads[2] })
+      }
       const n = liveValues.current.length
       iRef.current = n; setLiveLen(n); setIdx(n)
       if (n >= MAX_LIVE) { stopCapture(); return }
@@ -150,18 +157,34 @@ function Engine({ streams, cRes, theme }) {
       setPrep((p) => ({ ...p, ready: false, down: nf, error: nf ? null : String(e.message || e) }))
       return
     }
-    if (loopActive.current) setTimeout(captureTick, sourceRef.current === 'ip' ? 180 : 150)
+    if (loopActive.current) setTimeout(captureTick, sourceRef.current === 'ip' ? 50 : 35)
   }
-  function startCapture() {
+  async function startCapture() {
     if (stream.source === 'ip' && !(ping && ping.ok)) return
-    loopActive.current = true
     liveValues.current = []; scores.current = []; heads.current = []; iRef.current = 0
-    setLiveLen(0); setIdx(0); setPlaying(false); setCapturing(true)
+    setLiveLen(0); setIdx(0); setPlaying(false)
     setPrep({ ready: true, loading: false, error: null, down: false, elapsed: null })
-    setLiveMeta({ source: stream.source, ip: stream.source === 'ip' ? ipInput.trim() : (health && health.device_ip) || '', unit: stream.source === 'ip' ? 'ms' : 'KB/s' })
-    captureTick()
+    try {
+      const q = stream.source === 'ip' ? `source=ip&ip=${encodeURIComponent(ipInput.trim())}` : 'source=device'
+      const st = await fetch(`${ENGINE_URL}/api/live/start?${q}&window=${window_}&lang=${engine}`).then((r) => r.json())
+      if (!st.ok) throw new Error(st.error || 'could not start capture')
+      sessionRef.current = st.session
+      liveStd.current = engine === 'js' ? new CausalStandardizer() : null
+      liveDet.current = engine === 'js' ? new UnifiedDetector(window_, 1.0) : null
+      setLiveMeta({ source: stream.source, ip: stream.source === 'ip' ? ipInput.trim() : (st.device_ip || ''), unit: st.unit })
+      loopActive.current = true; setCapturing(true)
+      captureTick()
+    } catch (e) {
+      loopActive.current = false; setCapturing(false)
+      const nf = e instanceof TypeError
+      setPrep((p) => ({ ...p, ready: false, down: nf, error: nf ? null : String(e.message || e) }))
+    }
   }
-  function stopCapture() { loopActive.current = false; setCapturing(false) }
+  function stopCapture() {
+    loopActive.current = false; setCapturing(false)
+    const sid = sessionRef.current
+    if (sid) { fetch(`${ENGINE_URL}/api/live/stop?session=${sid}`).catch(() => {}); sessionRef.current = null }
+  }
 
   const knownDone = !isLive && N > 0 && idx >= N
   function reset() {

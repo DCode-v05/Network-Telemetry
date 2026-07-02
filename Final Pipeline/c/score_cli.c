@@ -23,6 +23,7 @@ int main(int argc, char **argv)
     while (scanf("%lf", &x) == 1) {
         double s = unified_update(&d, x);
         printf("%.10g %.10g %.10g %.10g\n", s, d.s_drv, d.s_drift, d.s_per);
+        fflush(stdout);   /* flush per line so the server can read one score per fed sample */
     }
     return 0;
 }

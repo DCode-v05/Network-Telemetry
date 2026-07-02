@@ -124,7 +124,13 @@ Besides the bundled datasets, the Live Pipeline can capture **real telemetry** (
   shows up as a latency spike). IPv4 is validated server-side.
 Live data has no ground-truth labels, so the readout shows current score / alerts /
 alert-rate / peak instead of recall/F1. Any engine (JS/Python/C) scores it.
-Endpoints: `/api/ping`, `/api/sample?source=device|ip` (one live sample), `/api/run_values`.
+
+Capture uses a low-latency **session** model: `/api/live/start` opens a session that
+holds a persistent detector (a Python instance, a persistent C `score_cli` pipe, or —
+for JS — the browser's own detector) plus the standardizer and the last byte counter;
+`/api/live/next` returns one gap-free sample **scored incrementally** (delta since the
+last poll, no in-request sleep); `/api/live/stop` closes it. Latency stays flat (~30 ms)
+regardless of how long you capture — no growing lag. (`/api/ping` still backs the ping check.)
 
 ## Requirements
 - **Python 3.10+** with **numpy** (the only third-party dep). `--plot` optionally uses matplotlib (skipped if absent).
