@@ -42,21 +42,47 @@ def _runs_to_events(labels, atype):
     return events
 
 
-def load_synthetic():
+def _load_csv(fname):
     vals, labels, atype = [], [], []
-    with open(os.path.join(DATA, "synthetic_demo.csv"), newline="") as f:
+    with open(os.path.join(DATA, fname), newline="") as f:
         for r in csv.DictReader(f):
             vals.append(round(float(r["value"]), 4))
             labels.append(int(r["label"]))
             atype.append(r.get("anomaly_type", "") or "anomaly")
+    return vals, labels, atype
+
+
+def load_clean():
+    """Category 1 -- a normal stream with NO anomalies: the score stays below the
+    line, so nothing alarms (proves the detector doesn't cry wolf on clean data)."""
+    vals, labels, atype = _load_csv("synthetic_clean.csv")
     return {
-        "id": "synthetic",
-        "name": "Synthetic — all four anomaly types",
+        "id": "clean",
+        "name": "Clean baseline — normal telemetry (no anomalies)",
         "kind": "synthetic",
+        "category": "clean",
         "unit": "telemetry value",
         "window": 24,
         "standardize": False,
-        "defaultThreshold": 0.9,
+        "defaultThreshold": 1.3,
+        "values": vals,
+        "labels": labels,
+        "events": [],
+    }
+
+
+def load_synthetic():
+    """Category 2 -- a labelled stream with INJECTED anomalies (all four types)."""
+    vals, labels, atype = _load_csv("synthetic_demo.csv")
+    return {
+        "id": "synthetic",
+        "name": "Synthetic — all four anomaly types (injected)",
+        "kind": "synthetic",
+        "category": "injected",
+        "unit": "telemetry value",
+        "window": 24,
+        "standardize": False,
+        "defaultThreshold": 2.0,
         "values": vals,
         "labels": labels,
         "events": _runs_to_events(labels, atype),
@@ -64,7 +90,8 @@ def load_synthetic():
 
 
 def main():
-    streams = [load_synthetic()]
+    streams = [load_clean(), load_synthetic()]
+    # Category 3 -- real telemetry with real anomalies (nothing injected).
     for s in load_nab():
         fname = os.path.basename(s.meta["name"])
         name, thr = NAB_INFO.get(fname, (fname, 2.0))
@@ -72,6 +99,7 @@ def main():
             "id": fname.replace(".csv", ""),
             "name": name,
             "kind": "nab",
+            "category": "real",
             "unit": "value",
             "window": 24,
             "standardize": True,

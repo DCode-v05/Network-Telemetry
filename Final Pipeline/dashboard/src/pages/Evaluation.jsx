@@ -20,6 +20,48 @@ const PHASE1 = {
   rejectedList: ['ADWIN', 'DDM', 'Kalman Filter', 'Matrix Profile', 'Spectral Residual', 'SAX', 'ARIMA', 'PELT', 'Binary Segmentation'],
 }
 
+// one-line "what it is" for every detector name across the three phases (#6)
+const DESC = {
+  // Phase 2 / 3 — single
+  ZScore: 'Rolling z-score (Welford) — point spikes',
+  MAD: 'Median-absolute-deviation robust z — heavy-tailed spikes',
+  EWMA: 'Exp-weighted moving-average control chart — level shifts',
+  CUSUM: 'Cumulative-sum change detector — sustained shifts',
+  PageHinkley: 'Page-Hinkley test — gradual drift',
+  SlidingWindow: 'Sliding-window mean threshold — baseline',
+  // Phase 3 — gated
+  GatedZScore: 'Z-score + confirmation gate — fewer false positives',
+  GatedMAD: 'MAD + confirmation gate — fewer false positives',
+  GatedEWMA: 'EWMA + confirmation gate — fewer false positives',
+  GatedCUSUM: 'CUSUM + confirmation gate — fewer false positives',
+  // Phase 3 — ensemble
+  Spike_AND: 'AND-vote of spike detectors — high precision',
+  Spike_OR: 'OR-vote of spike detectors — high recall',
+  Sustained_OR: 'OR-vote of change detectors — sustained shifts',
+  TwoLayerEnsemble: 'Spike + sustained layers combined',
+  // Phase 4 — production registry
+  ewma_z: 'EWMA control-chart z-score',
+  robust_z: 'Robust (MAD) z-score',
+  hampel: 'Hampel identifier — robust outliers',
+  cusum: 'CUSUM change detector',
+  page_hinkley: 'Page-Hinkley drift test',
+  ewmv_adaptive: 'Adaptive EWMA + variance control',
+  deriv: 'First-difference derivative — Pareto-cheapest single',
+  acf_periodicity: 'Autocorrelation-drop — periodicity loss',
+  heavy_baseline: 'Heavy-tailed baseline model',
+  layered: 'Layered spike + drift detector',
+  voting: 'Voting ensemble (all four types)',
+  cascade: 'Cascade ensemble',
+  ewma_z_hold: 'EWMA-z with anomaly-aware HOLD baseline',
+  ewmv_hold: 'EWMV with HOLD baseline',
+  cusum_gated: 'CUSUM + confirmation gate',
+  page_hinkley_gated: 'Page-Hinkley + confirmation gate',
+  ewmv_gated: 'EWMV + confirmation gate',
+  ewmv_hold_gated: 'EWMV-HOLD + confirmation gate',
+  acf_gated: 'Gated ACF periodicity head',
+  unified: 'THREE heads (derivative + EWMA + gated-ACF), MAX-fused — all four types in 96 B',
+}
+
 const FINDINGS = [
   { p: 'Phase 2', t: 'No single detector wins every anomaly type — MAD/Z-Score lead on spikes, EWMA/CUSUM/PH on sustained changes. That motivated combining them.' },
   { p: 'Phase 3', t: 'Confirmation gating cuts false positives sharply (e.g. MAD FPR 14.6 % → 5.6 %, Z-Score 5.1 % → 0.7 %) while keeping recall within ~4 pts of the best single.' },
@@ -49,9 +91,10 @@ export default function Evaluation() {
     <div className="page wide">
       <div className="page-head">
         <div className="eyebrow">evaluation · {d.counts.total} detectors · 4 phases</div>
-        <h1>From 15 candidates to <span className="hero-underline">one winner</span></h1>
-        <p>Phase 1 selected 6 algorithms from theory; Phase 2 benchmarked them; Phase 3 added gated/ensemble
-          variants; Phase 4 screened a fresh field of 20 on intelligence-vs-cost behind a hard budget gate.</p>
+        <h1>From {d.counts.total} detectors to <span className="hero-underline">one winner</span></h1>
+        <p>Four empirical phases evaluated <b>{d.counts.total} detectors</b> in total — Phase 2's {d.counts.phase2} single
+          detectors, Phase 3's {d.counts.phase3} gated/ensemble variants, and Phase 4's fresh field of {d.counts.phase4}
+          behind a hard budget gate — to select a single on-device winner: <b className="mono">unified</b>.</p>
       </div>
 
       <div className="grid g4">
@@ -77,11 +120,29 @@ export default function Evaluation() {
       </div>
 
       {/* ---- Phase 2 ---- */}
-      <PhaseHead n="2" title="Single-detector benchmark" sub="6 detectors on real CESNET traffic · best F1 by anomaly type (no single detector wins all)" />
+      <PhaseHead n="2" title="Single-detector benchmark" sub={`${d.counts.phase2} single detectors · event detection rate by anomaly type — no single detector combines full coverage with a low false-alarm rate`} />
       <PhaseTypeTable rows={d.phase2} />
+      <p className="desc" style={{ marginTop: 8 }}>
+        <b>Why detection rate, not F1?</b> These are rare <i>point</i> anomalies — a handful of anomalous samples
+        against thousands of normal ones — so sample-level precision floors near 0.1 % and sample-F1 collapses to
+        ~0.01 for <i>every</i> detector, an uninformative number. The measure that carries signal is whether each
+        anomaly <i>window</i> is flagged at all (event detection rate, shown above), read together with the
+        false-positive rate.
+      </p>
+
+      {/* ---- Phase 2 -> Phase 3 justification ---- */}
+      <div className="callout" style={{ marginTop: 14, borderLeftColor: 'var(--purple)' }}>
+        <b>Why move Phase 2 → Phase 3?</b> Phase 2 exposes a tension: the detectors that catch everything do it by
+        alerting constantly. <span className="mono">MAD</span> reaches <b>1.00</b> detection on spikes and transients
+        but at a <b>~14.6 % FPR</b>, and <span className="mono">EWMA</span> sits near <b>~20 % FPR</b>. High recall
+        <i> or</i> low false alarms — not both. Phase 3 adds a <b>confirmation gate</b> (fire only when an anomaly
+        persists) and <b>ensembles</b> (vote across detectors), which cut false positives sharply while holding
+        detection: <span className="mono">GatedZScore 5.1 % → 0.7 % FPR</span>,
+        <span className="mono"> GatedMAD 14.6 % → 5.6 %</span>. The gated MAD / Z-Score family carries forward.
+      </div>
 
       {/* ---- Phase 3 ---- */}
-      <PhaseHead n="3" title="Confirmation-gated ensemble" sub="14 detectors: 6 single + 4 gated + 4 ensemble · gating cuts false positives" />
+      <PhaseHead n="3" title="Confirmation-gated ensemble" sub={`${d.counts.phase3} detectors: 6 single + 4 gated + 4 ensemble · gating holds detection while cutting false positives`} />
       <PhaseTypeTable rows={d.phase3} showKind />
 
       {/* ---- Phase 4 ---- */}
@@ -152,6 +213,44 @@ export default function Evaluation() {
           </div>
         ))}
       </div>
+
+      {/* ---- Full catalogue: every one of the 40 detectors, named (#6) ---- */}
+      <PhaseHead title={`Full detector catalogue — all ${d.counts.total}`} sub="exactly which detectors were evaluated in each phase, and what each one is" />
+      <div className="grid g3">
+        <CatalogueCol n="2" title="Single-detector benchmark" names={d.phase2.map((r) => r.detector)} />
+        <CatalogueCol n="3" title="Gated + ensemble" names={d.phase3.map((r) => r.detector)} />
+        <CatalogueCol n="4" title="Production field" names={d.phase4.map((r) => r.detector)} winner="unified" />
+      </div>
+      <p className="desc" style={{ marginTop: 8 }}>
+        {d.counts.phase2} + {d.counts.phase3} + {d.counts.phase4} = <b>{d.counts.total} detectors</b> evaluated in total.
+        <span className="mono"> unified</span> (Phase 4) is the selected winner — one of the {d.counts.total}, not a
+        separate entry.
+      </p>
+    </div>
+  )
+}
+
+function CatalogueCol({ n, title, names, winner }) {
+  return (
+    <div className="card">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <span style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--accent)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: 12, flex: 'none' }}>{n}</span>
+        <span style={{ fontWeight: 600, fontSize: 13.5 }}>Phase {n} · {title}</span>
+        <span style={{ marginLeft: 'auto', color: 'var(--fg-subtle)', fontSize: 12 }}>{names.length}</span>
+      </div>
+      <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'grid', gap: 7 }}>
+        {names.map((nm, i) => (
+          <li key={nm} style={{ display: 'grid', gridTemplateColumns: '18px 1fr', gap: 8, alignItems: 'baseline' }}>
+            <span className="mono" style={{ color: 'var(--fg-subtle)', fontSize: 11 }}>{i + 1}</span>
+            <span>
+              <span className="mono" style={{ fontWeight: 600, fontSize: 12.5, color: nm === winner ? 'var(--accent)' : 'var(--fg)' }}>
+                {nm}{nm === winner && <span className="badge accent" style={{ marginLeft: 6 }}>winner</span>}
+              </span>
+              <div className="desc" style={{ fontSize: 11.5, marginTop: 1 }}>{DESC[nm] || '—'}</div>
+            </span>
+          </li>
+        ))}
+      </ol>
     </div>
   )
 }
@@ -176,9 +275,11 @@ function PhaseHead({ n, title, sub }) {
 }
 
 function PhaseTypeTable({ rows, showKind }) {
-  const types = P2_TYPES.filter((t) => rows.some((r) => r.by_type && t in r.by_type))
+  // headline metric = event-level DETECTION RATE per anomaly type (sample-F1 is
+  // uninformative for rare point anomalies -- see the note under Phase 2)
+  const types = P2_TYPES.filter((t) => rows.some((r) => r.by_type_det && t in r.by_type_det))
   const colMax = {}
-  types.forEach((t) => { colMax[t] = Math.max(...rows.map((r) => r.by_type?.[t] ?? 0)) })
+  types.forEach((t) => { colMax[t] = Math.max(...rows.map((r) => r.by_type_det?.[t] ?? 0)) })
   return (
     <div className="tbl-wrap">
       <table className="tbl">
@@ -187,7 +288,7 @@ function PhaseTypeTable({ rows, showKind }) {
             <th>detector</th>
             {showKind && <th>kind</th>}
             {types.map((t) => <th key={t} style={{ textAlign: 'right' }}>{t.replace('_', ' ')}</th>)}
-            <th style={{ textAlign: 'right' }}>best F1</th>
+            <th style={{ textAlign: 'right' }}>best detect</th>
             <th style={{ textAlign: 'right' }}>mean FPR</th>
           </tr>
         </thead>
@@ -197,12 +298,12 @@ function PhaseTypeTable({ rows, showKind }) {
               <td className="mono" style={{ fontWeight: 600 }}>{r.detector}</td>
               {showKind && <td><span className="badge" style={{ color: KIND_COLOR[r.kind], borderColor: KIND_COLOR[r.kind] }}>{cap(r.kind)}</span></td>}
               {types.map((t) => {
-                const v = r.by_type?.[t]
+                const v = r.by_type_det?.[t]
                 const win = v != null && v === colMax[t]
-                return <td key={t} className="mono" style={{ textAlign: 'right', color: win ? 'var(--accent)' : 'var(--fg-muted)', fontWeight: win ? 600 : 400 }}>{fmt(v)}</td>
+                return <td key={t} className="mono" style={{ textAlign: 'right', color: win ? 'var(--accent)' : 'var(--fg-muted)', fontWeight: win ? 600 : 400 }}>{fmt(v, 2)}</td>
               })}
-              <td className="mono" style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(r.f1_best)}</td>
-              <td className="mono" style={{ textAlign: 'right', color: 'var(--fg-muted)' }}>{fmt(r.fpr_mean)}</td>
+              <td className="mono" style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(r.det_best, 2)}</td>
+              <td className="mono" style={{ textAlign: 'right', color: r.fpr_mean > 0.1 ? 'var(--red)' : 'var(--fg-muted)' }}>{fmt(r.fpr_mean, 3)}</td>
             </tr>
           ))}
         </tbody>

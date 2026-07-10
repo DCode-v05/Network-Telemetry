@@ -14,23 +14,32 @@ const HEADS = [
 const ENGINE_URL = 'http://localhost:8008'
 const ENGINES = [{ id: 'js', label: 'JS' }, { id: 'python', label: 'Python' }, { id: 'c', label: 'C' }]
 const LIVE_STREAMS = [
-  { id: '__device', name: 'My device — live network throughput', kind: 'live', source: 'device', standardize: true, defaultThreshold: 2.0 },
-  { id: '__ip', name: 'Custom IPv4 — live ping latency', kind: 'live', source: 'ip', standardize: true, defaultThreshold: 2.0 },
+  { id: '__device', name: 'My device', kind: 'live', source: 'device', standardize: true, defaultThreshold: 2.0 },
+  { id: '__ip', name: 'Any network', kind: 'live', source: 'ip', standardize: true, defaultThreshold: 2.0 },
 ]
 const MAX_LIVE = 2000
-const fmt = (x, d = 3) => (x == null || Number.isNaN(x) ? '—' : Number(x).toFixed(d))
+// one dataset per type, kept short
+const CATEGORIES = [
+  { id: 'clean', label: '① Clean · no anomalies', note: 'A normal baseline with nothing injected. The score should stay below the line, so no false alarms.' },
+  { id: 'injected', label: '② Injected anomalies', note: 'Anomalies we injected at known spots, so every alert can be checked against the truth.' },
+  { id: 'real', label: '③ Real telemetry', note: 'Real recorded NAB telemetry with genuine, labelled failures. Nothing here is injected.' },
+]
+const catOf = (s) => CATEGORIES.find((c) => c.id === (s.category || 'injected'))
+const fmt = (x, d = 3) => (x == null || Number.isNaN(x) ? '·' : Number(x).toFixed(d))
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s)
+// short display name: drop anything after a dash or parenthesis
+const shortName = (s) => s.name.split(/[—–(]/)[0].trim()
 
-export default function LivePipeline() {
+export default function LivePipeline({ embed = false, defaultInput } = {}) {
   const { theme } = useOutletContext()
   const { loading, error, data } = useJson(['data/streams.json', 'data/c_results.json'])
-  if (loading) return <div className="page"><div className="loading">loading streams…</div></div>
-  if (error) return <div className="page"><div className="error">missing <code>streams.json</code> — run <code>python python/export_streams.py</code></div></div>
-  return <Engine streams={[...data[0].streams, ...LIVE_STREAMS]} cRes={data[1]} theme={theme} />
+  if (loading) return <div className={embed ? '' : 'page'}><div className="loading">loading streams…</div></div>
+  if (error) return <div className={embed ? '' : 'page'}><div className="error">missing <code>streams.json</code>, run <code>python python/export_streams.py</code></div></div>
+  return <Engine streams={[...data[0].streams, ...LIVE_STREAMS]} cRes={data[1]} theme={theme} embed={embed} defaultInput={defaultInput} />
 }
 
-function Engine({ streams, cRes, theme }) {
-  const [selId, setSelId] = useState(streams[0].id)
+function Engine({ streams, cRes, theme, embed, defaultInput }) {
+  const [selId, setSelId] = useState(() => (defaultInput && streams.find((s) => s.id === defaultInput) ? defaultInput : streams[0].id))
   const stream = streams.find((s) => s.id === selId) || streams[0]
   const isLive = stream.kind === 'live'
   const [engine, setEngine] = useState('js')
@@ -220,7 +229,7 @@ function Engine({ streams, cRes, theme }) {
   }, [idx, threshold, stream, liveLen, isLive])
 
   const valUnit = isLive ? (liveMeta?.unit || (stream.source === 'ip' ? 'ms' : 'KB/s')) : null
-  const option = useMemo(() => scopeOption(dispValues, scores.current, idx, threshold, valUnit), [idx, threshold, theme.resolved, N])
+  const option = useMemo(() => scopeOption(dispValues, scores.current, heads.current, isLive ? null : stream.labels, idx, threshold, valUnit), [idx, threshold, theme.resolved, N])
 
   // primary button
   let primaryLabel, primaryClick, primaryDisabled
@@ -239,22 +248,30 @@ function Engine({ streams, cRes, theme }) {
   const statusCls = (capturing || playing) ? 'live' : (status === 'COMPLETE' || status === 'STOPPED') ? 'done' : status === 'NOT READY' ? 'notready' : ''
 
   return (
-    <div className="page wide">
-      <div className="page-head">
-        <div className="eyebrow">live pipeline · run it in Python, C, or JS</div>
-        <h1>Stream a signal <span className="hero-underline">through the detector</span></h1>
-        <p>Pick a dataset or capture <b>live telemetry from your device or any IPv4 host</b>, choose an engine, and
-          run. Live capture streams continuously until you press Stop. Same 96-byte algorithm, parity Δ = 0.</p>
-      </div>
+    <div className={embed ? '' : 'page wide'}>
+      {!embed && (
+        <div className="page-head">
+          <div className="eyebrow">live pipeline · run it in Python, C, or JS</div>
+          <h1>Stream a signal <span className="hero-underline">through the detector</span></h1>
+          <p>Pick a dataset or capture <b>live telemetry from your device or any IPv4 host</b>, choose an engine, and
+            run. Live capture streams continuously until you press Stop. Same 96-byte algorithm, parity Δ = 0.</p>
+        </div>
+      )}
 
       <div className="deck-row">
         <div className="grp">
           <span className="lbl">input</span>
           <select className="sel" value={selId} onChange={(e) => setSelId(e.target.value)}>
-            <optgroup label="Datasets">
-              {streams.filter((s) => s.kind !== 'live').map((s) => <option key={s.id} value={s.id}>{s.name} · {s.values.length} samples</option>)}
-            </optgroup>
-            <optgroup label="Live · needs engine server">
+            {CATEGORIES.map((c) => {
+              const items = streams.filter((s) => s.kind !== 'live' && (s.category || 'injected') === c.id).slice(0, 1)
+              if (!items.length) return null
+              return (
+                <optgroup key={c.id} label={c.label}>
+                  {items.map((s) => <option key={s.id} value={s.id}>{shortName(s)} · {s.values.length} samples</option>)}
+                </optgroup>
+              )
+            })}
+            <optgroup label="④ Live telemetry">
               {LIVE_STREAMS.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </optgroup>
           </select>
@@ -287,6 +304,12 @@ function Engine({ streams, cRes, theme }) {
           <span className={'rec ' + statusCls}><span className="d" />{status}</span>
         </div>
       </div>
+
+      {!isLive && catOf(stream) && (
+        <div className="callout" style={{ marginBottom: 16, borderLeftColor: stream.category === 'clean' ? 'var(--green)' : stream.category === 'real' ? 'var(--cyan)' : 'var(--accent)' }}>
+          <b>{catOf(stream).label.replace(/ ·.*/, '')}.</b> {catOf(stream).note}
+        </div>
+      )}
 
       {isLive && (
         <div className="deck-row">
@@ -323,8 +346,8 @@ function Engine({ streams, cRes, theme }) {
 
       {isLive && prep.down && (
         <div className="callout" style={{ marginBottom: 16, borderLeftColor: 'var(--amber)' }}>
-          <b>Engine server not running.</b> Live capture needs it — start it from <span className="mono">Final Pipeline</span>:
-          <span className="mono" style={{ color: 'var(--accent)' }}> python server.py</span> — then try again.
+          <b>Engine server not running.</b> Live capture needs it, start it from <span className="mono">Final Pipeline</span>:
+          <span className="mono" style={{ color: 'var(--accent)' }}> python server.py</span>, then try again.
         </div>
       )}
       {!isLive && prep.down && (
@@ -355,15 +378,15 @@ function Engine({ streams, cRes, theme }) {
             <div className="section-title" style={{ margin: '0 0 12px' }}>Live readout</div>
             <div className="ro-grid">
               <RO v={fmt(m.curScore, 2)} k="current score" c={m.curScore >= threshold ? 'var(--amber)' : 'var(--fg)'} />
-              <RO v={m.alerts} k="alerts" c="var(--red)" />
-              {m.live ? <>
+              <RO v={m.alerts} k="alerts" c={m.alerts ? 'var(--red)' : 'var(--green)'} />
+              {(m.live || stream.events.length === 0) ? <>
                 <RO v={fmt(m.alertRate, 2)} k="alert rate" c="var(--cyan)" />
-                <RO v={fmt(m.peak, 2)} k="peak score" c="var(--fg)" />
+                <RO v={fmt(m.peak, 2)} k="peak score" c={m.peak >= threshold ? 'var(--amber)' : 'var(--green)'} />
               </> : <>
                 <RO v={`${m.detected}/${stream.events.length}`} k="events detected" c="var(--green)" />
                 <RO v={fmt(m.tpr, 2)} k="recall" c="var(--cyan)" />
                 <RO v={fmt(m.f1, 2)} k="F1 (sample)" c="var(--fg)" />
-                <RO v={m.lat == null ? '—' : fmt(m.lat, 0)} k="latency (samp)" c="var(--fg)" />
+                <RO v={m.lat == null ? '·' : fmt(m.lat, 0)} k="latency (samp)" c="var(--fg)" />
               </>}
             </div>
           </div>
@@ -389,15 +412,6 @@ function Engine({ streams, cRes, theme }) {
             })}
           </div>
 
-          <div className="card" style={{ marginTop: 16 }}>
-            <div className="section-title" style={{ margin: '0 0 10px' }}>Deployment</div>
-            <div className="grid g2" style={{ gap: 10 }}>
-              <Mini v={`${cRes?.bench?.state_bytes ?? 96} B`} k="state < 100" c="var(--green)" />
-              <Mini v={`${fmt(cRes?.bench?.rows?.[0]?.ns_per_sample, 1)} ns`} k="per sample (C)" c="var(--green)" />
-              <Mini v={engine.toUpperCase()} k={prep.elapsed != null ? `ran in ${prep.elapsed} ms` : 'execution engine'} c={engine === 'js' ? 'var(--accent)' : 'var(--green)'} />
-              <Mini v="PY=C=JS" k={`parity Δ ${cRes?.parity?.max_diff ?? 0}`} c="var(--accent)" />
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -407,7 +421,7 @@ function Engine({ streams, cRes, theme }) {
 const RO = ({ v, k, c }) => <div className="ro-cell"><div className="v" style={{ color: c }}>{v}</div><div className="k">{k}</div></div>
 const Mini = ({ v, k, c }) => <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '10px 11px', background: 'var(--bg-subtle)' }}><div className="mono" style={{ fontSize: 15, color: c || 'var(--fg)' }}>{v}</div><div style={{ fontSize: 10.5, color: 'var(--fg-muted)', marginTop: 1 }}>{k}</div></div>
 
-function scopeOption(values, sc, idx, threshold, valUnit) {
+function scopeOption(values, sc, heads, labels, idx, threshold, valUnit) {
   const t = themeColors()
   const N = values.length
   const stride = Math.max(1, Math.floor(N / 1500))
@@ -421,7 +435,32 @@ function scopeOption(values, sc, idx, threshold, valUnit) {
   return {
     animation: false, backgroundColor: 'transparent',
     grid: [{ left: 54, right: 16, top: 12, height: '52%' }, { left: 54, right: 16, top: '68%', height: '26%' }],
-    tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, backgroundColor: t.bg, borderColor: t.border, textStyle: { color: t.fg, fontSize: 11 } },
+    tooltip: {
+      trigger: 'axis', axisPointer: { type: 'cross' },
+      backgroundColor: t.bg, borderColor: t.border, textStyle: { color: t.fg, fontSize: 11 }, extraCssText: 'max-width:240px;line-height:1.5',
+      formatter: (ps) => {
+        const p = ps && ps[0]
+        if (!p) return ''
+        const i = p.data[0]
+        const v = values[i]
+        const s = sc[i] ?? 0
+        const h = heads[i] || {}
+        const hd = [['Derivative', h.sDrv ?? 0, 'spike · transient', '#e5484d'], ['EWMA control', h.sDrift ?? 0, 'drift', '#7c3aed'], ['ACF-drop', h.sPer ?? 0, 'periodicity', '#0891b2']]
+        const mx = Math.max(hd[0][1], hd[1][1], hd[2][1])
+        const alert = s >= threshold
+        let o = `<div style="font-weight:600;margin-bottom:3px">sample ${i}${N ? ` / ${N - 1}` : ''}</div>`
+        o += `<div>value <b>${v != null ? Number(v).toFixed(2) : '·'}</b>${valUnit ? ' ' + valUnit : ''}</div>`
+        o += `<div>score <b>${Number(s).toFixed(2)}</b> <span style="color:${t.subtle}">vs thr ${Number(threshold).toFixed(2)}</span></div>`
+        o += `<div style="color:${alert ? t.red : t.subtle}">${alert ? '● ALERT · score ≥ threshold' : '○ below threshold'}</div>`
+        if (labels && labels[i]) o += `<div style="color:${t.amber}">● labelled anomaly (ground truth)</div>`
+        o += `<div style="margin-top:5px;color:${t.subtle}">heads · final score = the max of these</div>`
+        for (const [nm, val, sub, color] of hd) {
+          const win = val > 0 && val === mx
+          o += `<div style="color:${win ? color : t.subtle}">${win ? '▸' : '&nbsp;&nbsp;'} ${nm} <b>${val.toFixed(2)}</b> <span style="opacity:.7">· ${sub}</span></div>`
+        }
+        return o
+      },
+    },
     axisPointer: { link: [{ xAxisIndex: 'all' }] },
     xAxis: [
       { type: 'value', gridIndex: 0, min: 0, max: Math.max(1, N - 1), ...ax, axisLabel: { show: false }, splitLine: { show: false } },

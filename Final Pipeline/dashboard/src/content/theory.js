@@ -1,43 +1,43 @@
-// Explanatory content for the Problem & Theory page (authored from the repo docs:
-// Phase 1 Algorithm Study + HPE Evaluation Criteria + CPP problem statement).
+// Written content for the Problem Statement page (drawn from the Phase 1 study,
+// the HPE evaluation criteria, and the project brief). Plain-language on purpose.
 
 export const PROBLEM = [
-  "Network switches already emit rich telemetry — link utilisation, packet rate, queue depth, error counters, jitter — at sub-second granularity. Today that data is either shipped to a central collector (seconds-to-minutes of latency, bandwidth cost, a single point of failure) or reduced to static threshold alerts that can't tell a legitimate burst from an anomaly, can't see gradual drift, and can't notice a periodic signal going irregular.",
-  "This project asks a narrower question: can useful anomaly detection run directly on the switch's ARM-class control-plane processor — where you get a few kilobytes of RAM and must answer in microseconds? That turns into a hard resource budget, and the whole study is about which lightweight time-series techniques stay accurate inside it.",
+  "A network switch already knows a lot about itself: how busy each link is, its packet rates, queue depths, error counts, jitter, all updated many times a second across hundreds of interfaces at once. The problem is what happens to that data. Usually it's either shipped off to a central collector, which adds seconds or minutes of delay, eats bandwidth, and goes dark the moment the uplink drops. Or it gets boiled down to a few fixed threshold alerts that can't tell a normal burst from a real problem, never see a slow drift coming, and don't notice when a steady signal turns ragged.",
+  "So we asked a sharper question. What if the switch just did the detection itself, right on its little ARM control-plane processor, where you've got only a few kilobytes of RAM and microseconds to answer? That question turns into a strict budget, and this whole project is really about which lightweight techniques stay accurate once you squeeze them into it.",
 ]
 
 export const CONSTRAINTS = [
-  { k: "Observation window", server: "1,000 – 100,000+ samples", device: "10 – 50 samples" },
-  { k: "Compute per sample", server: "milliseconds OK", device: "< 100 microseconds" },
+  { k: "Observation window", server: "1,000 to 100,000+ samples", device: "10 to 50 samples" },
+  { k: "Compute per sample", server: "milliseconds are fine", device: "< 100 microseconds" },
   { k: "Memory per metric", server: "megabytes", device: "< 100 bytes" },
   { k: "Libraries", server: "NumPy / SciPy / TF", device: "basic C arithmetic" },
-  { k: "Processing model", server: "batch (reprocess window)", device: "streaming (one sample at a time)" },
-  { k: "Metrics monitored", server: "tens", device: "hundreds – thousands at once" },
+  { k: "Processing model", server: "batch (reprocess the window)", device: "streaming (one sample at a time)" },
+  { k: "Metrics monitored", server: "tens", device: "hundreds to thousands at once" },
 ]
 
 export const ANOMALIES = [
   {
     key: "spike", name: "Spike / Burst", color: "var(--red)",
-    def: "A sudden, large single-sample (or very short) excursion far outside normal range — e.g. a microburst of traffic.",
-    detail: "Defined here as a ≥ 6σ single-sample excursion. A lone 4σ sample is within normal noise (a 600-sample stream already has several 3–3.5σ points), so no causal detector can separate it without firing on noise.",
+    def: "A sudden jump, either a single sample or a very short burst, that lands far outside the normal range. Think a microburst of traffic.",
+    detail: "We draw the line at a jump of at least 6σ in one sample. A lone 4σ blip is really just noise (a 600-sample stream will already have a few points at 3 to 3.5σ), so no honest detector could pick it out without firing on that noise too.",
     head: "Derivative head",
   },
   {
     key: "drift", name: "Gradual Drift", color: "var(--purple)",
-    def: "A slow, sustained shift of the baseline that never crosses a fixed threshold — e.g. a link slowly saturating.",
-    detail: "The regime is anomalous once the drift begins; a level detector must notice the baseline moving away from its history without chasing it.",
+    def: "A slow, steady shift in the baseline that never actually trips a fixed threshold, like a link gradually saturating.",
+    detail: "The moment the drift starts, things are already going wrong. The trick is noticing the baseline creeping away from its own history, without simply chasing it and deciding the new level is fine.",
     head: "EWMA control-chart head",
   },
   {
     key: "periodicity", name: "Periodicity Loss", color: "var(--cyan)",
-    def: "A previously regular / periodic signal (keepalive, poll) becomes irregular — the rhythm breaks.",
-    detail: "Detected by watching the autocorrelation at the dominant short lag drop. Only meaningful when the signal was periodic to begin with.",
+    def: "A signal that used to be regular, like a keepalive or a poll, loses its rhythm and goes irregular.",
+    detail: "We catch it by watching how strongly the signal repeats at its main beat, and noticing when that repetition drops off. It only makes sense once the signal was periodic to begin with.",
     head: "Gated ACF-drop head",
   },
   {
     key: "transient", name: "Transient", color: "var(--amber)",
-    def: "A brief 1–2 sample drop or spike that lasts only a moment — a packet-drop blip.",
-    detail: "Needs a detector that reacts to the rate of change, not the level, so a one-sample event still registers before it's gone.",
+    def: "A blink-and-you-miss-it dip or spike, one or two samples long, like a packet-drop blip.",
+    detail: "You need a detector that reacts to how fast things are changing, not to the level, otherwise a one-sample event is gone before it ever registers.",
     head: "Derivative head",
   },
 ]

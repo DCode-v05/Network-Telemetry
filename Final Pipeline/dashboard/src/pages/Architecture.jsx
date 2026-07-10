@@ -31,15 +31,19 @@ function MiniArrow() {
   )
 }
 
-export default function Architecture() {
+export default function Architecture({ embed = false } = {}) {
   return (
-    <div className="page wide">
-      <div className="page-head">
-        <div className="eyebrow">unified detector · architecture</div>
-        <h1>Three heads, one 96-byte state, <span className="hero-underline">MAX-fused</span></h1>
-        <p>Every sample flows through one shared state block into three specialised heads. Each head targets a
-          different anomaly class; the final score is the maximum of the three normalised head scores.</p>
-      </div>
+    <div className={embed ? '' : 'page wide'}>
+      {embed
+        ? <div className="section-title" style={{ marginTop: 8 }}>Inside the winner · three heads, one 96-byte state, MAX-fused</div>
+        : (
+          <div className="page-head">
+            <div className="eyebrow">unified detector · architecture</div>
+            <h1>Three heads, one 96-byte state, <span className="hero-underline">MAX-fused</span></h1>
+            <p>Every sample flows through one shared state block into three specialised heads. Each head targets a
+              different anomaly class; the final score is the maximum of the three normalised head scores.</p>
+          </div>
+        )}
 
       {/* ---- the diagram ---- */}
       <div className="dgm">
@@ -53,7 +57,7 @@ export default function Architecture() {
           <div className="t">shared state · 96 bytes</div>
           <div style={{ display: 'flex', gap: 6, marginTop: 12, height: 30, borderRadius: 7, overflow: 'hidden', border: '1px solid var(--border)' }}>
             {STATE.items.map((s, i) => (
-              <div key={i} title={`${s.k} — ${s.bytes} B`} style={{
+              <div key={i} title={`${s.k} · ${s.bytes} B`} style={{
                 flex: s.bytes, background: ['var(--accent)', 'var(--purple)', 'var(--fg-subtle)'][i],
                 display: 'grid', placeItems: 'center', color: '#fff', fontSize: 11.5, fontFamily: 'var(--font-mono)', fontWeight: 600,
               }}>{s.bytes}B</div>
@@ -110,30 +114,6 @@ export default function Architecture() {
         </table>
       </div>
 
-      <div className="section-title">The tricks that make it work</div>
-      <div className="grid g2">
-        {HEADS.map((h) => (
-          <div className="card" key={h.n}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span className="badge" style={{ color: h.color, borderColor: h.color }}>{h.trick}</span>
-              <span className="desc" style={{ color: 'var(--fg-subtle)' }}>{h.name}</span>
-            </div>
-            <p className="desc">{h.trickDesc}</p>
-          </div>
-        ))}
-        <div className="card" style={{ borderColor: 'color-mix(in srgb, var(--green) 40%, var(--border))' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <span className="badge ok">Share one state block</span>
-          </div>
-          <p className="desc">3 heads reuse the same 96 bytes instead of ~424 for a naive 4-detector vote. {STATE.note}</p>
-        </div>
-      </div>
-
-      <div className="callout" style={{ marginTop: 20 }}>
-        <b>No-dilution design.</b> {NODILUTION.map((x, i) => (
-          <span key={i}><b>{x.t}</b> — {x.d}{i < NODILUTION.length - 1 ? ' · ' : '.'}</span>
-        ))}
-      </div>
     </div>
   )
 }

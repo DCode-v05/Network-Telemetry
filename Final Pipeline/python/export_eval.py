@@ -49,25 +49,41 @@ def _num(x):
 
 
 def _agg_phase_csv(path):
-    """Aggregate an aggregated_results.csv down to one row per base detector."""
+    """Aggregate an aggregated_results.csv down to one row per base detector.
+
+    NOTE on the primary metric: these are RARE POINT anomalies, so sample-level
+    precision floors near ~0.001 (a handful of positive samples vs. thousands of
+    negatives) and sample-F1 collapses to ~0.01 for *every* detector -- a
+    misleading number that makes strong detectors look broken. The metric that
+    actually carries signal here is the EVENT-level DETECTION RATE (did we flag
+    the anomaly window at all) paired with the false-positive rate. So we surface
+    detection_rate per type as the headline and keep F1/TPR/FPR alongside.
+    """
     if not os.path.exists(path):
         return []
     rows = list(csv.DictReader(open(path, newline="")))
     by_base = {}
     for r in rows:
         base = r["detector"].split("(")[0].strip().strip('"')
-        d = by_base.setdefault(base, {"f1": [], "tpr": [], "fpr": [], "by_type": {}})
+        d = by_base.setdefault(base, {"f1": [], "tpr": [], "fpr": [], "det": [],
+                                       "by_type": {}, "by_type_det": {}})
         f1, tpr, fpr = _num(r["f1_mean"]), _num(r["tpr_mean"]), _num(r["fpr_mean"])
+        det = _num(r.get("detection_rate"))
         if f1 is not None:
             d["f1"].append(f1)
         if tpr is not None:
             d["tpr"].append(tpr)
         if fpr is not None:
             d["fpr"].append(fpr)
+        if det is not None:
+            d["det"].append(det)
         at = r["anomaly_type"]
         bt = d["by_type"].setdefault(at, [])
         if f1 is not None:
             bt.append(f1)
+        btd = d["by_type_det"].setdefault(at, [])
+        if det is not None:
+            btd.append(det)
     out = []
     for base, d in by_base.items():
         out.append({
@@ -76,9 +92,12 @@ def _agg_phase_csv(path):
             "f1_mean": round(sum(d["f1"]) / len(d["f1"]), 4) if d["f1"] else 0,
             "tpr_mean": round(sum(d["tpr"]) / len(d["tpr"]), 4) if d["tpr"] else 0,
             "fpr_mean": round(sum(d["fpr"]) / len(d["fpr"]), 4) if d["fpr"] else 0,
+            "det_best": round(max(d["det"]), 4) if d["det"] else 0,
             "by_type": {t: round(max(v), 4) for t, v in d["by_type"].items() if v},
+            # event-level detection rate per anomaly type (the headline metric)
+            "by_type_det": {t: round(max(v), 4) for t, v in d["by_type_det"].items() if v},
         })
-    out.sort(key=lambda x: -x["f1_best"])
+    out.sort(key=lambda x: -x["det_best"])
     return out
 
 

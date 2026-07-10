@@ -88,6 +88,21 @@ def build_composite(n=960, sigma=1.0, period=24, amp=6.0, seed=11):
     return composite, labels, atype, events_by_type
 
 
+def build_clean(n=720, sigma=1.2, seed=7):
+    """Build a NORMAL stream with NO injected anomalies -- a stable telemetry
+    baseline (idle network throughput analogue). The detector should stay quiet:
+    the score never reaches the operating line, so nothing alarms. Empirically
+    (seed 7) the peak score is ~1.23 (a lone derivative noise tick) with the
+    drift/periodicity heads near zero, so the stream's default threshold is set
+    to 1.3 -- comfortably above normal fluctuation, giving zero alerts.
+    """
+    rng = np.random.default_rng(seed)
+    values = base_signal("flat", n, sigma, rng)      # stable level + realistic noise
+    labels = np.zeros(n, dtype=int)                  # ground truth: nothing anomalous
+    atype = [""] * n
+    return values, labels, atype
+
+
 def write_synthetic_csv(path, values, labels, atype, start="2024-01-01 00:00:00"):
     t0 = datetime.strptime(start, "%Y-%m-%d %H:%M:%S")
     with open(path, "w", newline="") as f:
@@ -144,6 +159,12 @@ def main():
     print(f"  wrote {out_csv}  ({len(values)} samples, {int(labels.sum())} anomalous)")
     for name, evs in events.items():
         print(f"    {name:12s} events={evs}")
+
+    print("building synthetic_clean.csv (normal baseline, no anomalies) ...")
+    cvals, clabels, catype = build_clean()
+    clean_csv = os.path.join(DATA, "synthetic_clean.csv")
+    write_synthetic_csv(clean_csv, cvals, clabels, catype)
+    print(f"  wrote {clean_csv}  ({len(cvals)} samples, {int(clabels.sum())} anomalous)")
 
     print("staging NAB streams (read-only) ...")
     n = stage_nab()

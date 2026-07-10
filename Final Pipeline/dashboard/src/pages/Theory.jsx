@@ -1,4 +1,5 @@
 import { PROBLEM, CONSTRAINTS, ANOMALIES, shapeFor } from '../content/theory.js'
+import PhaseNav from '../components/PhaseNav.jsx'
 
 function Spark({ points, color }) {
   const n = points.length
@@ -21,7 +22,7 @@ export default function Theory() {
       <div className="page-head">
         <div className="eyebrow">problem statement</div>
         <h1>Intelligence at the edge, on a byte budget</h1>
-        <p>Why on-device detection, what makes it hard, and the four kinds of anomaly the detector has to catch.</p>
+        <p>Here's why you'd want the detection running on the device itself, what makes that so hard, and the four kinds of anomaly it has to catch.</p>
       </div>
 
       <div className="prose">
@@ -51,7 +52,6 @@ export default function Theory() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 4 }}>
               <span className="dot" style={{ background: a.color, width: 10, height: 10 }} />
               <h3 style={{ margin: 0 }}>{a.name}</h3>
-              <span className="badge" style={{ marginLeft: 'auto' }}>{a.head}</span>
             </div>
             <Spark points={shapeFor(a.key)} color={a.color} />
             <p className="desc" style={{ marginTop: 8 }}><strong style={{ color: 'var(--fg)' }}>{a.def}</strong></p>
@@ -61,10 +61,12 @@ export default function Theory() {
       </div>
 
       <div className="callout" style={{ marginTop: 22 }}>
-        <b>Why four types matter:</b> no single classical detector covers all four — spike/transient need a
-        change-of-rate view, drift needs a level view, periodicity needs a spectral view. The unified detector
-        combines all three views in one 96-byte unit (see <b>Architecture</b>).
+        <b>Why the four types matter:</b> no single classic detector covers all of them. Spikes and transients need a
+        view of how fast things are changing, drift needs a view of the overall level, and periodicity needs a view of
+        the rhythm.
       </div>
+
+      <PhaseNav />
     </div>
   )
 }
