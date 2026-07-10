@@ -65,7 +65,7 @@ export default function Catalogue() {
       </div>
 
       {set === 'phase4'
-        ? (<><Leaderboard rows={activeRows} overall={overall} /><TargetsLegend /><FamilyLegend /></>)
+        ? (<><Leaderboard rows={activeRows} overall={overall} minimal /><TargetsLegend /><FamilyLegend /></>)
         : (<><PhaseTypeTable rows={activeRows} showKind={set === 'phase3'} />{set === 'phase3' && <KindLegend />}</>)}
 
       <PhaseNav />

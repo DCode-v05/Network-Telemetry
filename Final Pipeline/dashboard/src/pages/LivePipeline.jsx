@@ -150,7 +150,11 @@ function Engine({ streams, theme, embed, defaultInput }) {
       if (!r.ok) throw new Error(r.error || 'capture failed')
       liveValues.current.push(r.value)
       if (r.score == null) {                       // js: browser scores this sample incrementally
-        const fed = liveStd.current.push(r.value)
+        // device throughput and ping latency are both positive, heavy-tailed/ratio-scale
+        // network metrics; log-compress before standardizing so normal bursts/jitter don't
+        // get amplified into false anomalies (the detector itself is untouched)
+        const pre = Math.log1p(Math.max(0, r.value))
+        const fed = liveStd.current.push(pre)
         const rr = liveDet.current.update(fed)
         scores.current.push(rr.score); heads.current.push(rr)
       } else {                                      // python/c: server already scored it
@@ -297,7 +301,7 @@ function Engine({ streams, theme, embed, defaultInput }) {
           <div className="seg">{[10, 20, 24, 30, 50].map((w) => <button key={w} className={w === window_ ? 'on' : ''} onClick={() => setWindow(w)}>{w}</button>)}</div>
         </div>
         <div className="grp"><span className="lbl">threshold</span>
-          <input type="range" min="0.2" max={stream.standardize ? 5 : 3} step="0.05" value={threshold} onChange={(e) => setThreshold(parseFloat(e.target.value))} />
+          <input type="range" min={isLive ? 1 : 0.2} max={stream.standardize ? 5 : 3} step="0.05" value={threshold} onChange={(e) => setThreshold(parseFloat(e.target.value))} />
           <span className="mono" style={{ color: 'var(--accent)', minWidth: 38 }}>{threshold.toFixed(2)}</span>
         </div>
         <div className="grp" style={{ marginLeft: 'auto' }}>

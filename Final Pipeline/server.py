@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import math
 import os
 import re
 import socket
@@ -208,7 +209,11 @@ class LiveSession:
         """Capture one sample, feed it to the persistent detector, return (value, score, heads).
         For lang=js the browser scores, so score/heads are None."""
         v = self._raw()
-        fed = self.std.push(float(v))
+        # device throughput and ping latency are both positive network metrics;
+        # log-compress before standardizing so normal bursts/jitter don't become
+        # false anomalies (the detector itself is untouched)
+        x = math.log1p(max(0.0, v))
+        fed = self.std.push(float(x))
         if self.lang == "python":
             s = self.det.update(fed)
             return v, round(s, 6), [round(self.det.s_drv, 5), round(self.det.s_drift, 5), round(self.det.s_per, 5)]
