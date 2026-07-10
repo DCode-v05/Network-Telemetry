@@ -32,13 +32,13 @@ const shortName = (s) => s.name.split(/[—–(]/)[0].trim()
 
 export default function LivePipeline({ embed = false, defaultInput } = {}) {
   const { theme } = useOutletContext()
-  const { loading, error, data } = useJson(['data/streams.json', 'data/c_results.json'])
+  const { loading, error, data } = useJson(['data/streams.json'])
   if (loading) return <div className={embed ? '' : 'page'}><div className="loading">loading streams…</div></div>
   if (error) return <div className={embed ? '' : 'page'}><div className="error">missing <code>streams.json</code>, run <code>python python/export_streams.py</code></div></div>
-  return <Engine streams={[...data[0].streams, ...LIVE_STREAMS]} cRes={data[1]} theme={theme} embed={embed} defaultInput={defaultInput} />
+  return <Engine streams={[...data[0].streams, ...LIVE_STREAMS]} theme={theme} embed={embed} defaultInput={defaultInput} />
 }
 
-function Engine({ streams, cRes, theme, embed, defaultInput }) {
+function Engine({ streams, theme, embed, defaultInput }) {
   const [selId, setSelId] = useState(() => (defaultInput && streams.find((s) => s.id === defaultInput) ? defaultInput : streams[0].id))
   const stream = streams.find((s) => s.id === selId) || streams[0]
   const isLive = stream.kind === 'live'
@@ -419,7 +419,6 @@ function Engine({ streams, cRes, theme, embed, defaultInput }) {
 }
 
 const RO = ({ v, k, c }) => <div className="ro-cell"><div className="v" style={{ color: c }}>{v}</div><div className="k">{k}</div></div>
-const Mini = ({ v, k, c }) => <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '10px 11px', background: 'var(--bg-subtle)' }}><div className="mono" style={{ fontSize: 15, color: c || 'var(--fg)' }}>{v}</div><div style={{ fontSize: 10.5, color: 'var(--fg-muted)', marginTop: 1 }}>{k}</div></div>
 
 function scopeOption(values, sc, heads, labels, idx, threshold, valUnit) {
   const t = themeColors()

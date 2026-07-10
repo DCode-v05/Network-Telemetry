@@ -3,13 +3,6 @@
 // ensemble docs, Phase 4 report/selection); the wording is meant to read like a
 // person explaining it. Quantitative tables come from evaluation.json.
 
-export const PHASES = [
-  { n: 1, id: 'phase1', title: 'Algorithm Study', tag: 'Which techniques even fit the budget?', color: 'var(--cyan)' },
-  { n: 2, id: 'phase2', title: 'Single-Detector Benchmark', tag: 'How well does each one actually detect?', color: 'var(--amber)' },
-  { n: 3, id: 'phase3', title: 'Confirmation-Gated Ensemble', tag: 'Combine them, cut the false alarms', color: 'var(--purple)' },
-  { n: 4, id: 'phase4', title: 'Production Selection', tag: 'Intelligence vs. cost, pick one winner', color: 'var(--accent)' },
-]
-
 // ---------------------------------------------------------------- Phase 1 ----
 export const PHASE1 = {
   goal: 'Before running a single experiment, we asked a simple question of 15 classic anomaly-detection algorithms: could this one even work in our budget of 10 to 50 samples, under 100 bytes, and under 100 microseconds? Only the ones that passed on paper moved on.',

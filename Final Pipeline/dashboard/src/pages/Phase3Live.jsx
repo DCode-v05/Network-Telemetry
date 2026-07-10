@@ -76,7 +76,7 @@ function Phase3Lab() {
       </div>
 
       <div className="card pad0" style={{ marginBottom: 14 }}>
-        <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--fg-muted)' }} className="mono">live reproduction · generated data · anomaly region shaded · each row = one detector's alerts</div>
+        <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--fg-muted)' }} className="mono">Live Reproduction</div>
         <div style={{ padding: '10px 14px' }}>
           {scored.map((t) => (
             <div key={t.key} style={{ display: 'grid', gridTemplateColumns: '160px 1fr 120px', gap: 12, alignItems: 'center', padding: '6px 0' }}>

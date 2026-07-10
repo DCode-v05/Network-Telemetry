@@ -56,9 +56,8 @@ Final Pipeline/
 └── README.md
 ```
 
-The `python/` folder also has three dashboard exporters: `export_streams.py` (raw
-streams for the live page), `export_eval.py` (the 40-detector cross-phase catalogue),
-and `export_source.py` (the Python/C/JS source for the code viewer).
+The `python/` folder also has two dashboard exporters: `export_streams.py` (raw
+streams for the live page) and `export_eval.py` (the 40-detector cross-phase catalogue).
 
 ## Quick start
 
@@ -88,8 +87,7 @@ python c\collect_c_results.py                # -> results/c_results.json
 
 # 4. dashboard data + launch
 python python\export_streams.py                 # raw streams -> live page
-python python\export_eval.py                     # 40-detector catalogue -> Evaluation page
-python python\export_source.py                   # Python/C/JS source -> Source page
+python python\export_eval.py                     # 40-detector catalogue -> Catalogue page
 powershell -NoProfile -File dashboard\sync_data.ps1
 cd dashboard ; npm install ; npm run dev        # open http://localhost:5173/
 ```

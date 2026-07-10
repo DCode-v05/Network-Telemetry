@@ -20,14 +20,6 @@ function gaussian(rng) {
 }
 
 
-// which single detectors "should" win each type (from Phase 2 detection-rate results)
-export const EXPECTED = {
-  burst: ['MAD', 'ZScore'],
-  transient: ['MAD', 'ZScore'],
-  rate_shift: ['MAD', 'EWMA', 'CUSUM'],
-  gradual_drift: ['CUSUM', 'PageHinkley', 'MAD'],
-}
-
 export function makeStream(atype, { n = 320, sigma = 1.0, level = 50, seed = 7 } = {}) {
   const rng = mulberry32(seed)
   const v = new Array(n)

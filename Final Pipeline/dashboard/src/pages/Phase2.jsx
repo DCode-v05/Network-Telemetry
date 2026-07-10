@@ -64,7 +64,7 @@ export default function Phase2() {
 
 // ---------------------------------------------------------------- live lab ----
 function Phase2Lab({ theme }) {
-  const [atype, setAtype] = useState('transient')
+  const [atype, setAtype] = useState('burst')
   const [win, setWin] = useState(20)
   const [seed, setSeed] = useState(118)   // a seed where no single detector catches all four types
   const [idx, setIdx] = useState(0)

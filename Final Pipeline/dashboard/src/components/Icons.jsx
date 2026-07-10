@@ -14,5 +14,4 @@ export const IcSun = (p) => <S {...p}><circle cx="12" cy="12" r="4" /><path d="M
 export const IcMoon = (p) => <S {...p}><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" /></S>
 export const IcMonitor = (p) => <S {...p}><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" /></S>
 export const IcArrow = (p) => <S {...p}><path d="M5 12h14M12 5l7 7-7 7" /></S>
-export const IcCheck = (p) => <S {...p}><polyline points="20 6 9 17 4 12" /></S>
 export const IcChip = (p) => <S {...p}><rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" /><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2" /></S>

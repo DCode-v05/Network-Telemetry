@@ -40,16 +40,20 @@ export default function Phase3Evaluators() {
       <div className="section-title">False alarms before and after gating (real results)</div>
       <div className="card">
         <div style={{ display: 'flex', gap: 16, marginBottom: 12, fontSize: 12, color: 'var(--fg-muted)' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: 'color-mix(in srgb, var(--red) 30%, transparent)', border: '1px solid var(--border)', flex: 'none' }} />Before gating (left)</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: 'var(--green)', flex: 'none' }} />After gating (right)</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: 'color-mix(in srgb, var(--red) 45%, transparent)', border: '1px solid var(--border)', flex: 'none' }} />Before gating</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: 'var(--green)', flex: 'none' }} />After gating</span>
         </div>
         {PHASE3.fprReduction.map((r) => (
-          <div key={r.det} style={{ display: 'grid', gridTemplateColumns: '110px 1fr 150px', gap: 12, alignItems: 'center', padding: '7px 0' }}>
+          <div key={r.det} style={{ display: 'grid', gridTemplateColumns: '110px 1fr 150px', gap: 12, alignItems: 'center', padding: '8px 0' }}>
             <span className="mono" style={{ fontWeight: 600 }}>{r.det}</span>
-            <div style={{ position: 'relative', height: 20, background: 'var(--bg-subtle)', borderRadius: 5, border: '1px solid var(--border)', overflow: 'hidden' }}>
-              {/* full "before" bar (red) anchored left; the green "after" chunk sits at its right end, so red = before on the left, green = after on the right */}
-              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(100, r.before * 4)}%`, background: 'color-mix(in srgb, var(--red) 30%, transparent)' }} />
-              <div style={{ position: 'absolute', left: `${Math.min(100, (r.before - r.after) * 4)}%`, top: 0, bottom: 0, width: `${Math.min(100, r.after * 4)}%`, background: 'var(--green)' }} />
+            {/* two separate bars: each length is proportional to its own value, so a small drop (EWMA) reads as two near-equal bars */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ position: 'relative', height: 9, background: 'var(--bg-subtle)', borderRadius: 4, border: '1px solid var(--border)', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(100, r.before * 4)}%`, background: 'color-mix(in srgb, var(--red) 45%, transparent)' }} />
+              </div>
+              <div style={{ position: 'relative', height: 9, background: 'var(--bg-subtle)', borderRadius: 4, border: '1px solid var(--border)', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(100, r.after * 4)}%`, background: 'var(--green)' }} />
+              </div>
             </div>
             <span className="mono" style={{ fontSize: 12.5, color: 'var(--fg-muted)' }}>{r.before}% → <b style={{ color: 'var(--green)' }}>{r.after}%</b></span>
           </div>

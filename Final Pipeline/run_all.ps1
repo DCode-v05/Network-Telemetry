@@ -4,7 +4,7 @@
 #   2. Python streaming demo -> results/synthetic_results.json + nab_results.json
 #   3. build + verify the C twin (parity PASS, bench ns/sample, budget gate)
 #   4. collect C evidence -> results/c_results.json
-#   5. export dashboard data: streams.json (live) + evaluation.json (40 detectors) + source.json
+#   5. export dashboard data: streams.json (live) + evaluation.json (40 detectors)
 #   6. sync C evidence into the dashboard
 #
 # Then launch the dashboard:  cd dashboard ; npm install ; npm run dev
@@ -26,10 +26,9 @@ powershell -NoProfile -File (Join-Path $root 'c\build.ps1')
 Write-Host "`n==> [4/6] collect C results" -ForegroundColor Cyan
 python (Join-Path $root 'c\collect_c_results.py')
 
-Write-Host "`n==> [5/6] export dashboard data (live streams + evaluation + source)" -ForegroundColor Cyan
+Write-Host "`n==> [5/6] export dashboard data (live streams + evaluation)" -ForegroundColor Cyan
 python (Join-Path $root 'python\export_streams.py')
 python (Join-Path $root 'python\export_eval.py')
-python (Join-Path $root 'python\export_source.py')
 
 Write-Host "`n==> [6/6] sync C evidence into the dashboard" -ForegroundColor Cyan
 powershell -NoProfile -File (Join-Path $root 'dashboard\sync_data.ps1')

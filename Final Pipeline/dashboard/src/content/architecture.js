@@ -41,8 +41,6 @@ export const STATE = {
   note: "Five scalars, a 17-slot buffer, a couple of counters: 5×4 + 17×4 + 8 = 96 bytes, just under the 100-byte line. That 17th slot (instead of 16) is the one deliberate splurge. It pushed periodicity detection from about 0.84 up to nearly 1.00, and we stayed in budget by storing the period as an integer instead of a float.",
 }
 
-export const FUSION = "score = max( derivative , drift , periodicity )   →   alert when score ≥ threshold"
-
 export const NODILUTION = [
   { t: "HOLD the baselines", d: "an anomaly never gets to corrupt the very stats that are supposed to catch it" },
   { t: "CLIP the drift head", d: "a slow step can't drown out a spike happening at the same moment" },
